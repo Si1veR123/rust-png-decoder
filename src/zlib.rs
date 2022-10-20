@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use crate::deflate::DeflateDecompressor;
+use crate::low_level_functions::hex_vec_to_single;
 
 
 pub struct ZLibParser {
@@ -8,11 +9,12 @@ pub struct ZLibParser {
     dictid: Option<[u8; 4]>,
     flevel: u8,
     deflate_decompressor: DeflateDecompressor,
+    adler32: u32,
 }
 
 impl Display for ZLibParser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Raw ZLib Data {} {} {}", self.cm, self.cinfo, self.flevel)
+        write!(f, "CM: {} CINFO: {} FLEVEL: {} ADLER32: {}", self.cm, self.cinfo, self.flevel, self.adler32)
     }
 }
 
@@ -48,10 +50,11 @@ impl ZLibParser {
             dictid,
             flevel: (flg & 192u8) >> 6,
             deflate_decompressor: DeflateDecompressor::new(
-                data[deflate_data_start..(data.len()-1-4)]
+                data[deflate_data_start..(data.len()-4)]
                     .try_into()
                     .expect("Can't get deflate compressed data")
                 ),
+            adler32: hex_vec_to_single(&data[data.len()-4..].to_vec())
         }
     }
 }

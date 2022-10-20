@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-const FP: &str = r"E:\Programming\Rust\png-decoder\pngtest_large.png";
+const FP: &str = r"E:\Programming\Rust\png-decoder\pngtest_1x1.png";
 
 fn main() {
     let mut file_buffer = Vec::<u8>::new();
