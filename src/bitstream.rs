@@ -7,7 +7,7 @@ pub struct BitStream {
 }
 
 
-impl<'a> BitStream {
+impl BitStream {
     pub fn new(data: Vec<u8>, big_endian: bool) -> Self {
         Self {
             bytes: data,
@@ -43,7 +43,7 @@ impl<'a> BitStream {
             true => (self.byte_position*8) + (7-self.bit_position as usize)
         }
     }
-    fn next_n(&mut self, n: usize) -> &[u8] {
+    pub fn next_n(&mut self, n: usize) -> &[u8] {
         self.advance_bit_counter(n);
         let return_val = self.slice(0, n);
         return_val

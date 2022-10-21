@@ -13,7 +13,6 @@ use std::process::{exit, ExitCode};
 const FP: &str = r"E:\Programming\Rust\png-decoder\pngtest_1x1.png";
 
 fn main() {
-    println!("bit {} byte {}", bs.bit_position, bs.byte_position);
 
     let mut file_buffer = Vec::<u8>::new();
 
