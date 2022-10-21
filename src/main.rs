@@ -2,15 +2,19 @@ mod png_parser;
 mod low_level_functions;
 mod zlib;
 mod deflate;
+mod bitstream;
 
 use png_parser::PNGParser;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::process::{exit, ExitCode};
 
 const FP: &str = r"E:\Programming\Rust\png-decoder\pngtest_1x1.png";
 
 fn main() {
+    println!("bit {} byte {}", bs.bit_position, bs.byte_position);
+
     let mut file_buffer = Vec::<u8>::new();
 
     {
