@@ -3,14 +3,14 @@ mod low_level_functions;
 mod zlib;
 mod deflate;
 mod bitstream;
+mod huffman_coding;
 
 use png_parser::PNGParser;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use std::process::{exit, ExitCode};
 
-const FP: &str = r"E:\Programming\Rust\png-decoder\pngtest_1x1.png";
+const FP: &str = r"C:\Users\conno\Desktop\rust\rust-png-decoder\testpng_2x2.png";
 
 fn main() {
 

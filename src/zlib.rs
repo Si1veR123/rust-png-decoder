@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use crate::deflate::DeflateDecompressor;
-use crate::low_level_functions::hex_vec_to_single;
+use crate::low_level_functions::bytes_vec_to_single;
 
 
 pub struct ZLibParser {
@@ -54,7 +54,7 @@ impl ZLibParser {
                     .try_into()
                     .expect("Can't get deflate compressed data")
                 ),
-            adler32: hex_vec_to_single(&data[data.len()-4..].to_vec())
+            adler32: bytes_vec_to_single(&data[data.len()-4..].to_vec())
         }
     }
 }

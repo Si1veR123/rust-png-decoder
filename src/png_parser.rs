@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use crate::low_level_functions::hex_vec_to_single;
+use crate::low_level_functions::bytes_vec_to_single;
 use crate::zlib::ZLibParser;
 
 pub struct PNGMetadata {
@@ -62,7 +62,7 @@ impl PNGParser {
 
         while mut_data.len() > 12 {  // 12 so IEND chunk isn't included
             // first 4 bytes are chunk length
-            let chunk_length = hex_vec_to_single(&mut_data[0..4].to_vec());
+            let chunk_length = bytes_vec_to_single(&mut_data[0..4].to_vec());
             // next 4 bytes are chunk type
             let chunk_type: String = mut_data[4..8].iter().map(|x| *x as char).collect();
 
@@ -81,7 +81,7 @@ impl PNGParser {
             }
 
             // next 4 bytes are crc-32 check
-            let crc = hex_vec_to_single(&mut_data[data_chunk_end..data_chunk_end+4].iter().cloned().collect());
+            let crc = bytes_vec_to_single(&mut_data[data_chunk_end..data_chunk_end+4].iter().cloned().collect());
 
             let current_chunk = PNGChunk {
                 chunk_data,
@@ -102,8 +102,8 @@ impl PNGParser {
         }
 
         let metadata = PNGMetadata {
-            width: hex_vec_to_single(&ihdr.chunk_data[0..4].to_vec()),
-            height: hex_vec_to_single(&ihdr.chunk_data[4..8].to_vec()),
+            width: bytes_vec_to_single(&ihdr.chunk_data[0..4].to_vec()),
+            height: bytes_vec_to_single(&ihdr.chunk_data[4..8].to_vec()),
             bit_depth: ihdr.chunk_data[8],
             color_type: ihdr.chunk_data[9],
             filesize: filesize as u32,

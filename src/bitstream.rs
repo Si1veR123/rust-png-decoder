@@ -1,3 +1,5 @@
+use crate::low_level_functions::bits_to_byte;
+
 // Bit stream that takes a Vec of u8 bytes and can be iterated over, returning the bits, big endian or little endian.
 pub struct BitStream {
     bytes: Vec<u8>,
@@ -20,13 +22,18 @@ impl BitStream {
         &self.bytes[start..end]
     }
 
+    pub fn reset_bit_position(&mut self) {
+        self.bit_position = 0;
+        self.byte_position = 0;
+    }
+
     fn advance_bit_counter(&mut self, n: usize) {
         if self.big_endian {
             self.bit_position = 7 - self.bit_position;
         }
 
         // find bit pos relative to entire stream
-        let abs_bit_pos = (self.byte_position << 3) + (self.bit_position as usize);
+        let abs_bit_pos = self.current_abs_bit_position();
         let new_bit_pos = abs_bit_pos + n;
 
         self.byte_position = new_bit_pos / 8;
@@ -37,16 +44,34 @@ impl BitStream {
         }
     }
 
-    pub fn current_bit_position(&self) -> usize {
+    pub fn move_to_next_byte(&mut self) {
+        self.byte_position += 1;
+        self.bit_position = if self.big_endian {7} else {0};
+    }
+
+    pub fn current_abs_bit_position(&self) -> usize {
         match self.big_endian {
-            false => (self.byte_position*8) + (self.bit_position as usize),
-            true => (self.byte_position*8) + (7-self.bit_position as usize)
+            false => (self.byte_position << 3) + (self.bit_position as usize),
+            true => (self.byte_position << 3) + (7-self.bit_position as usize)
         }
     }
-    pub fn next_n(&mut self, n: usize) -> &[u8] {
-        self.advance_bit_counter(n);
-        let return_val = self.slice(0, n);
+    pub fn next_n(&mut self, n: usize) -> Vec<u8> {
+        let mut return_val = Vec::new();
+        for _i in 0..n {
+            return_val.push(self.next().expect("Bit not found in next_n"))
+        }
         return_val
+    }
+    pub fn next_n_bytes(&mut self, n: usize) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for _byte_n in 0..n {
+            bytes.push(self.next_byte());
+        }
+        bytes
+    }
+
+    pub fn next_byte(&mut self) -> u8 {
+        bits_to_byte(&self.next_n(8))
     }
 }
 
