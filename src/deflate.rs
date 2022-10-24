@@ -1,5 +1,5 @@
 use crate::bitstream::BitStream;
-use crate::low_level_functions::{bytes_vec_to_single, bits_to_byte};
+use crate::low_level_functions::{bytes_vec_to_single};
 
 
 struct DeflateBlock {

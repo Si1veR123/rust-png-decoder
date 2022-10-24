@@ -13,7 +13,6 @@ use std::path::Path;
 const FP: &str = r"C:\Users\conno\Desktop\rust\rust-png-decoder\testpng_2x2.png";
 
 fn main() {
-
     let mut file_buffer = Vec::<u8>::new();
 
     {
