@@ -11,6 +11,8 @@ pub fn bytes_vec_to_single(hex_vec: &Vec<u8>) -> u32 {
 }
 
 pub fn bits_to_byte(bits: &Vec<u8>) -> u8 {
+    // little endian (start from lsb)
+    // result is aligned to left (e.g. if 7 bits given, lsb in byte will be 0)
     assert!(bits.len() <= 8);
     let mut running_value = 0u8;
     for &bit in bits {

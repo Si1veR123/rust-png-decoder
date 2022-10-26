@@ -9,10 +9,25 @@ use png_parser::PNGParser;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-
 const FP: &str = r"C:\Users\conno\Desktop\rust\rust-png-decoder\testpng_2x2.png";
 
 fn main() {
+    /*
+    let mut codelengths = vec![8; 144];
+    codelengths.append(&mut ( vec![9; 112]));
+    codelengths.append(&mut vec![7; 24]);
+    codelengths.append(&mut vec![8; 8]);
+    let prefixcodes = huffman_coding::prefix_codes_from_codelengths(codelengths);
+
+    println!("{:?}", prefixcodes);
+    */
+
+    let mut bs = bitstream::BitStream::new(vec![144, 1], false);
+    bs.reset_bit_position();
+    let i = huffman_coding::next_fixed_huffman_code(&mut bs);
+    println!("{}", bs.current_abs_bit_position());
+    println!("{}", i);  
+
     let mut file_buffer = Vec::<u8>::new();
 
     {
