@@ -71,7 +71,7 @@ impl BitStream {
     }
 
     pub fn next_byte(&mut self) -> u8 {
-        bits_to_byte(&self.next_n(8))
+        bits_to_byte(&self.next_n(8), false)
     }
 }
 

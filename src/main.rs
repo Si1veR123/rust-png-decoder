@@ -9,7 +9,7 @@ use png_parser::PNGParser;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-const FP: &str = r"C:\Users\conno\Desktop\rust\rust-png-decoder\testpng_2x2.png";
+const FP: &str = r"E:\Programming\Rust\rust-png-decoder\pngtest_1x1.png";
 
 fn main() {
     /*
@@ -22,7 +22,7 @@ fn main() {
     println!("{:?}", prefixcodes);
     */
 
-    let mut bs = bitstream::BitStream::new(vec![144, 1], false);
+    let mut bs = bitstream::BitStream::new(vec![12], false);
     bs.reset_bit_position();
     let i = huffman_coding::next_fixed_huffman_code(&mut bs);
     println!("{}", bs.current_abs_bit_position());
