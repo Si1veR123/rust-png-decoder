@@ -8,7 +8,7 @@ pub struct ZLibParser {
     cinfo: u8,
     dictid: Option<[u8; 4]>,
     flevel: u8,
-    deflate_decompressor: DeflateDecompressor,
+    decompressed: Vec<u8>,
     adler32: u32,
 }
 
@@ -49,7 +49,7 @@ impl ZLibParser {
             cinfo: (cmf & 240u8) >> 4,
             dictid,
             flevel: (flg & 192u8) >> 6,
-            deflate_decompressor: DeflateDecompressor::new(
+            decompressed: DeflateDecompressor::new_parse_deflate(
                 data[deflate_data_start..(data.len()-4)]
                     .try_into()
                     .expect("Can't get deflate compressed data")

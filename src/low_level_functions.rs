@@ -38,7 +38,22 @@ pub fn adler_32(bytes: &Vec<u8>) -> u32 {
         b = (b + a) % 65521;
     }
 
-    // using | instead of +, untested
     ((b as u32) << 16) | (a as u32)
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_adler_32() {
+        assert_eq!(adler_32(&vec![97, 98, 99]), 38600999);
+
+        assert_eq!(adler_32(&vec![0]), 65537);
+
+        assert_eq!(adler_32(&vec![65, 98, 67]), 30212327);
+
+        assert_eq!(adler_32(&vec![126, 124]), 24772859);
+    }
+}

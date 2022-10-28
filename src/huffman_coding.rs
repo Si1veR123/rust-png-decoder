@@ -63,7 +63,6 @@ pub fn prefix_codes_from_codelengths(codelengths: Vec<u8>) -> Vec<u16> {
 pub fn next_fixed_huffman_code(data: &mut BitStream) -> u16 {
     let first_7 = bits_to_byte(&data.next_n(7), true) as u16;
     let symbol7 = FIXED_HUFFMAN_CODES_7.iter().position(|&x| x == first_7);
-    println!("{}", first_7);
     if symbol7.is_some() {
         return (symbol7.unwrap() as u16) + 256
     }
@@ -121,21 +120,21 @@ pub fn decode_distance(data: &mut BitStream, dist_sym: u8) -> u16 {
     }
 }
 
-pub fn decode_duplicate_reference(data: &mut BitStream, length: u16, distance: u16) -> Vec<u8> {
-    let start_bit_position = data.current_abs_bit_position();
-    data.advance_bit_counter(-(distance as i16));
-
-    let mut bits: Vec<u8> = Vec::new();
+pub fn decode_duplicate_reference(prev_literals: &Vec<u8>, length: u16, distance: u16) -> Vec<u8> {
+    let mut literals: Vec<u8> = Vec::new();
     
+    let mut position: usize = prev_literals.len();
+    println!("pos {} dist {}", position, distance);
+    position -= distance as usize;
+
     for _i in 0..(length) {
-        bits.push(data.next().unwrap());
-        if data.current_abs_bit_position() == start_bit_position {
-            data.advance_bit_counter(-(distance as i16));
+        literals.push(*prev_literals.get(position).unwrap());
+        if position == prev_literals.len()-1 {
+            position -= distance as usize;
         }
+        position += 1;
     }
-    // reset to original position
-    data.advance_bit_counter((start_bit_position as i16) - (data.current_abs_bit_position() as i16));
-    bits
+    literals
 }
 
 
@@ -192,17 +191,9 @@ mod tests {
 
     #[test]
     fn test_decode_duplicate_reference() {
-        // 10011010 11011111 00010111
-        let mut bs = BitStream::new(vec![154, 223, 23], false);
-
-        // 10011010 110|11111 00010111
-        bs.advance_bit_counter(13);
-
-        assert_eq!(decode_duplicate_reference(&mut bs, 3, 8), vec![0, 0, 1]);
+        assert_eq!(decode_duplicate_reference(&vec![1, 2, 3, 4, 5], 3, 4), vec![2, 3, 4]);
 
         // repeated reference test
-        // 10011010 11011111 000|10111
-        bs.advance_bit_counter(8);
-        assert_eq!(decode_duplicate_reference(&mut bs, 8, 3), vec![1, 0, 1, 1, 0, 1, 1, 0]);
+        assert_eq!(decode_duplicate_reference(&vec![1, 2, 3, 4, 5, 6, 7, 8], 8, 3), vec![6, 7, 8, 6, 7, 8, 6, 7]);
     }
 }
