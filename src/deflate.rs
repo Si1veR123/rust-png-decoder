@@ -1,5 +1,6 @@
 use crate::bitstream::BitStream;
-use crate::low_level_functions::{bytes_vec_to_single};
+use crate::huffman_coding::*;
+use crate::low_level_functions::{bytes_vec_to_single, bits_to_byte};
 
 
 struct DeflateBlock {
@@ -40,7 +41,26 @@ impl DeflateBlock {
     }
 
     fn deflate_fixed_huffman_block(data: &mut BitStream) -> Vec<u8> {
-        Vec::new()
+        let mut literals: Vec<u8> = Vec::new();
+
+        loop {
+            let symbol = next_fixed_huffman_code(data);
+
+            if symbol > 256 {
+                let length = decode_length(data, symbol);
+                let distance_symbol = bits_to_byte(&data.next_n(5), true);
+                let distance = decode_distance(data, distance_symbol);
+
+                let duplicate_values = decode_duplicate_reference(data, length, distance);
+                literals.extend(duplicate_values);
+            }
+            else if symbol == 256 {
+                break
+            } else {
+                literals.push(symbol as u8);
+            }
+        }
+        literals
     }
 
     fn deflate_dynamic_huffman_block(data: &mut BitStream) -> Vec<u8> {

@@ -18,6 +18,7 @@ impl BitStream {
             big_endian,
         }
     }
+
     pub fn slice(&self, start: usize, end: usize) -> &[u8] {
         &self.bytes[start..end]
     }
@@ -27,14 +28,14 @@ impl BitStream {
         self.byte_position = 0;
     }
 
-    fn advance_bit_counter(&mut self, n: usize) {
+    pub fn advance_bit_counter(&mut self, n: i16) {
         if self.big_endian {
             self.bit_position = 7 - self.bit_position;
         }
 
         // find bit pos relative to entire stream
         let abs_bit_pos = self.current_abs_bit_position();
-        let new_bit_pos = abs_bit_pos + n;
+        let new_bit_pos = ((abs_bit_pos as i16) + n) as usize;
 
         self.byte_position = new_bit_pos / 8;
         self.bit_position = (new_bit_pos % 8) as u8;
@@ -51,10 +52,11 @@ impl BitStream {
 
     pub fn current_abs_bit_position(&self) -> usize {
         match self.big_endian {
-            false => (self.byte_position << 3) + (self.bit_position as usize),
-            true => (self.byte_position << 3) + (7-self.bit_position as usize)
+            false => (self.byte_position << 3) | (self.bit_position as usize),
+            true => (self.byte_position << 3) | (7-self.bit_position as usize)
         }
     }
+
     pub fn next_n(&mut self, n: usize) -> Vec<u8> {
         let mut return_val = Vec::new();
         for _i in 0..n {
@@ -62,16 +64,17 @@ impl BitStream {
         }
         return_val
     }
+
+    pub fn next_byte(&mut self) -> u8 {
+        bits_to_byte(&self.next_n(8), false)
+    }
+
     pub fn next_n_bytes(&mut self, n: usize) -> Vec<u8> {
         let mut bytes = Vec::new();
         for _byte_n in 0..n {
             bytes.push(self.next_byte());
         }
         bytes
-    }
-
-    pub fn next_byte(&mut self) -> u8 {
-        bits_to_byte(&self.next_n(8), false)
     }
 }
 
