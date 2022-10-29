@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use crate::deflate::DeflateDecompressor;
+use crate::deflate::deflate_decompressor;
 use crate::low_level_functions::bytes_vec_to_single;
 
 
@@ -49,7 +49,7 @@ impl ZLibParser {
             cinfo: (cmf & 240u8) >> 4,
             dictid,
             flevel: (flg & 192u8) >> 6,
-            decompressed: DeflateDecompressor::new_parse_deflate(
+            decompressed: deflate_decompressor::new_parse_deflate(
                 data[deflate_data_start..(data.len()-4)]
                     .try_into()
                     .expect("Can't get deflate compressed data")

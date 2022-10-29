@@ -60,7 +60,7 @@ pub fn prefix_codes_from_codelengths(codelengths: Vec<u8>) -> Vec<u16> {
     prefix_codes
 }
 
-pub fn next_fixed_huffman_code(data: &mut BitStream) -> u16 {
+pub fn next_fixed_huffman_symbol(data: &mut BitStream) -> u16 {
     let first_7 = bits_to_byte(&data.next_n(7), true) as u16;
     let symbol7 = FIXED_HUFFMAN_CODES_7.iter().position(|&x| x == first_7);
     if symbol7.is_some() {
@@ -82,6 +82,28 @@ pub fn next_fixed_huffman_code(data: &mut BitStream) -> u16 {
         return (symbol9.unwrap() as u16) + 144
     }
     panic!("Can't get fixed huffman code")
+}
+
+pub fn huffman_codes_from_codelengths(codelengths: &Vec<u8>) -> (Vec<u16>, Vec<u16>) {
+    // returns same size vectors of symbols, and prefixes
+    let mut symbols = Vec::new();
+
+    for (i, &code) in codelengths.iter().enumerate() {
+        if code > 0 {
+            symbols.push(i as u16);
+        }
+    }
+
+    // this is a vector of the prefixes for each of the code lengths
+    let prefixes = prefix_codes_from_codelengths(
+        codelengths
+        .iter()
+        .cloned()
+        .filter(|&x| x > 0)
+        .collect()
+    );
+
+    (symbols, prefixes)
 }
 
 pub fn decode_length(data: &mut BitStream, length_sym: u16) -> u16 {
@@ -195,5 +217,14 @@ mod tests {
 
         // repeated reference test
         assert_eq!(decode_duplicate_reference(&vec![1, 2, 3, 4, 5, 6, 7, 8], 8, 3), vec![6, 7, 8, 6, 7, 8, 6, 7]);
+    }
+
+    #[test]
+    fn test_huffman_codes_from_codelengths() {
+        let codelengths = vec![0, 4, 1, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 2];
+        let (huffman_code_symbols, huffman_code_prefixes) = huffman_codes_from_codelengths(&codelengths);
+
+        assert_eq!(huffman_code_symbols, vec![1, 2, 4, 16, 17, 18]);
+        assert_eq!(huffman_code_prefixes, vec![12, 0, 13, 14, 15, 2]);
     }
 }
