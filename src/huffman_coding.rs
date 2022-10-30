@@ -60,6 +60,24 @@ pub fn prefix_codes_from_codelengths(codelengths: Vec<u8>) -> Vec<u16> {
     prefix_codes
 }
 
+pub fn next_huffman_symbol(data: &mut BitStream, symbols: &Vec<u16>, prefixes: &Vec<u16>, min_codelength: u8) -> u16 {
+    // could be error if min codelength > 8
+    let mut current_prefix = bits_to_byte(&data.next_n(min_codelength as usize), true) as u16;
+    let symbol;
+
+    loop {
+        let prefix_position = prefixes.iter().position(|&x| x == current_prefix);
+        if prefix_position.is_none() {
+            current_prefix = (current_prefix << 1) | (data.next().unwrap() as u16);
+            continue
+        }
+        symbol = *symbols.get( prefix_position.unwrap() ).unwrap();
+        break;
+    }
+
+    symbol
+}
+
 pub fn next_fixed_huffman_symbol(data: &mut BitStream) -> u16 {
     let first_7 = bits_to_byte(&data.next_n(7), true) as u16;
     let symbol7 = FIXED_HUFFMAN_CODES_7.iter().position(|&x| x == first_7);
@@ -146,7 +164,6 @@ pub fn decode_duplicate_reference(prev_literals: &Vec<u8>, length: u16, distance
     let mut literals: Vec<u8> = Vec::new();
     
     let mut position: usize = prev_literals.len();
-    println!("pos {} dist {}", position, distance);
     position -= distance as usize;
 
     for _i in 0..(length) {

@@ -35,7 +35,14 @@ impl BitStream {
 
         // find bit pos relative to entire stream
         let abs_bit_pos = self.current_abs_bit_position();
-        let new_bit_pos = ((abs_bit_pos as i16) + n) as usize;
+
+        // calculate new bit pos, either added or subtracted
+        let new_bit_pos: usize;
+        if n < 0 {
+            new_bit_pos = abs_bit_pos - (n.abs() as usize);
+        } else {
+            new_bit_pos = abs_bit_pos + (n as usize);
+        }
 
         self.byte_position = new_bit_pos / 8;
         self.bit_position = (new_bit_pos % 8) as u8;

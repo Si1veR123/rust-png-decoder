@@ -14,7 +14,7 @@ pub struct ZLibParser {
 
 impl Display for ZLibParser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CM: {} CINFO: {} FLEVEL: {} ADLER32: {}", self.cm, self.cinfo, self.flevel, self.adler32)
+        write!(f, "CM: {} CINFO: {} FLEVEL: {} ADLER32: {} \n RAW DATA {:?}", self.cm, self.cinfo, self.flevel, self.adler32, self.decompressed)
     }
 }
 
