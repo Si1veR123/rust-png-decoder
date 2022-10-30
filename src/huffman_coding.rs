@@ -60,18 +60,33 @@ pub fn prefix_codes_from_codelengths(codelengths: Vec<u8>) -> Vec<u16> {
     prefix_codes
 }
 
-pub fn next_huffman_symbol(data: &mut BitStream, symbols: &Vec<u16>, prefixes: &Vec<u16>, min_codelength: u8) -> u16 {
-    // could be error if min codelength > 8
-    let mut current_prefix = bits_to_byte(&data.next_n(min_codelength as usize), true) as u16;
+pub fn next_huffman_symbol(data: &mut BitStream, symbols: &Vec<u16>, prefixes: &Vec<u16>, codelengths: &Vec<u8>, big_endian: bool) -> u16 {
+    let mut current_prefix = 0;
+    let mut current_codelength: u8 = 0;
     let symbol;
 
     loop {
-        let prefix_position = prefixes.iter().position(|&x| x == current_prefix);
-        if prefix_position.is_none() {
+        if big_endian {
             current_prefix = (current_prefix << 1) | (data.next().unwrap() as u16);
+        } else {
+            current_prefix = current_prefix | ((data.next().unwrap() as u16) << current_codelength);
+        }
+        current_codelength += 1;
+
+        // valid prefixes are where the codelength of this prefix == current_codelength
+        let mut valid_prefixes = prefixes
+            .iter()
+            .cloned()
+            .enumerate()
+            .filter(
+                |(i, _)| *codelengths.get(*i).unwrap() == current_codelength
+            );
+
+        let prefix_position = valid_prefixes.position(|(_, x)| x == current_prefix);
+        if prefix_position.is_none() {
             continue
         }
-        symbol = *symbols.get( prefix_position.unwrap() ).unwrap();
+        symbol = *symbols.get( prefixes.iter().position(|&x| x == current_prefix).unwrap() ).unwrap();
         break;
     }
 
@@ -149,8 +164,8 @@ pub fn decode_distance(data: &mut BitStream, dist_sym: u8) -> u16 {
         let mut extra_bits_value: u16 = 0;
 
         // same as bits_to_byte function, with added support for u16, as may be up to 13 bits
-        for bit in extra_bits {
-            extra_bits_value = (extra_bits_value << 1) | (bit as u16);
+        for (i, &bit) in extra_bits.iter().enumerate() {
+            extra_bits_value = extra_bits_value | ((bit as u16) << i);
         }
 
         dist_base + extra_bits_value
@@ -222,10 +237,10 @@ mod tests {
         assert_eq!(decode_distance(&mut bs, 5), 7);
 
         // next bits 101100
-        assert_eq!(decode_distance(&mut bs, 14), 173);
+        assert_eq!(decode_distance(&mut bs, 14), 142);
         
         // next bits 1111110111110
-        assert_eq!(decode_distance(&mut bs, 28), 24511);
+        assert_eq!(decode_distance(&mut bs, 28), 20416);
     }
 
     #[test]

@@ -56,24 +56,35 @@ mod deflate_block {
         }
     }
 
-    pub fn decode_codelengths(data: &mut BitStream, num_of_codes: usize, code_length_prefixes: &Vec<u16>, code_length_symbols: &Vec<u16>) -> Vec<u8> {
+    pub fn decode_codelengths(data: &mut BitStream, num_of_codes: usize, code_length_prefixes: &Vec<u16>, code_length_symbols: &Vec<u16>, code_length_codelengths: &Vec<u8>) -> Vec<u8> {
         // given huffman codes (symbols and prefixes) for the codelength table, decode a given number of codes from the bitstream
 
         let mut decoded_codelengths: Vec<u8> = Vec::new();
 
         loop {
             let mut prefix_code: u16 = 0;
+            let mut current_codelength = 0;
 
             loop {
                 // read next bit to prefix code
                 prefix_code = (prefix_code << 1) | (data.next().unwrap() as u16);
+                current_codelength += 1;
 
-                let prefix_position = code_length_prefixes.iter().position(|&x| x == prefix_code);
+                // valid prefixes are where the codelength of this prefix == current_codelength
+                let mut valid_prefixes = code_length_prefixes
+                    .iter()
+                    .cloned()
+                    .enumerate()
+                    .filter(
+                        |(i, _)| *code_length_codelengths.get(*i).unwrap() == current_codelength
+                    );
+
+                let prefix_position = valid_prefixes.position(|(_, x)| x == prefix_code);
                 
                 if prefix_position.is_none() { continue }
 
                 // get position, and use position to index code_length_symbols to find the symbol
-                let symbol = *code_length_symbols.get( prefix_position.unwrap() ).unwrap() as u8; // code length symbols <= 18
+                let symbol = *code_length_symbols.get( code_length_prefixes.iter().position(|&x| x == prefix_code).unwrap() ).unwrap() as u8; // code length symbols <= 18
                 match symbol {
                     0..=15 => {
                         // literal code length
@@ -130,29 +141,35 @@ mod deflate_block {
         }
 
         let (code_length_symbols, code_length_prefixes) = huffman_codes_from_codelengths(&code_length_codelengths.to_vec());
-
         // 2) Parse main huffman codelengths
-        let decoded_normal_codelengths = decode_codelengths(data, num_of_normal_codes, &code_length_prefixes, &code_length_symbols);
-        let decoded_distance_codelengths = decode_codelengths(data, num_of_dist_codes, &code_length_prefixes, &code_length_symbols);
+        
+        let filtered_code_length_codelengths = code_length_codelengths.iter().cloned().filter(|&x| x > 0).collect();
+        let decoded_normal_codelengths = decode_codelengths(data, num_of_normal_codes, &code_length_prefixes, &code_length_symbols, &filtered_code_length_codelengths);
+        let decoded_distance_codelengths = decode_codelengths(data, num_of_dist_codes, &code_length_prefixes, &code_length_symbols, &filtered_code_length_codelengths);
     
 
         let (huffman_normal_symbols, huffman_normal_prefixes) = huffman_codes_from_codelengths(&decoded_normal_codelengths);
-        let (huffman_distance_symbols, huffman_distance_prefixes) = huffman_codes_from_codelengths(&decoded_distance_codelengths);
+        let huffman_normal_codelengths: Vec<u8> = decoded_normal_codelengths.iter().cloned().filter(|&x| x > 0).collect();
 
-        let minimum_normal_codelength = decoded_normal_codelengths.iter().cloned().filter(|&x| x > 0).min().unwrap();
-        let minimum_distance_codelength = decoded_distance_codelengths.iter().cloned().filter(|&x| x > 0).min().unwrap();
+        let (huffman_distance_symbols, huffman_distance_prefixes) = huffman_codes_from_codelengths(&decoded_distance_codelengths);
+        let huffman_distance_codelengths: Vec<u8> = decoded_distance_codelengths.iter().cloned().filter(|&x| x > 0).collect();
+
+        /*
+        // Large detailed debugging output
+        println!("ALL DECODING INFO:\n\nNormal Codes: {} Dist Codes: {} CL Codes: {}\n\nCodelength codelengths {:?}\n\nCode Length Symbols {:?} Code Length Prefixes {:?}\n\nNormal Symbols {:?} Normal Prefixes {:?} Normal Codelengths {:?}\n\nDistance Symbols {:?} Distance Prefixes {:?} Distance Codelengths {:?}",
+            num_of_normal_codes, num_of_dist_codes, num_of_codelength_codes, code_length_codelengths, code_length_symbols, code_length_prefixes, huffman_normal_symbols, huffman_normal_prefixes, huffman_normal_codelengths, huffman_distance_symbols, huffman_distance_prefixes, huffman_distance_codelengths
+        );
+        */
 
         // 3) Parse data using huffman codes
         loop {
-            let symbol: u16 = next_huffman_symbol(data, &huffman_normal_symbols, &huffman_normal_prefixes, minimum_normal_codelength);
-
+            let symbol: u16 = next_huffman_symbol(data, &huffman_normal_symbols, &huffman_normal_prefixes, &huffman_normal_codelengths, true);
             if symbol > 256 {
                 let length = decode_length(data, symbol);
 
-                let distance_symbol = next_huffman_symbol(data, &huffman_distance_symbols, &huffman_distance_prefixes, minimum_distance_codelength) as u8;
+                let distance_symbol = next_huffman_symbol(data, &huffman_distance_symbols, &huffman_distance_prefixes, &huffman_distance_codelengths, true) as u8;
 
                 let distance = decode_distance(data, distance_symbol);
-
                 let duplicate_values = decode_duplicate_reference(symbol_buffer, length, distance);
                 symbol_buffer.extend(duplicate_values);
             }
@@ -189,14 +206,15 @@ pub mod deflate_decompressor {
 
 #[cfg(test)]
 mod tests {
+    use crate::deflate::deflate_decompressor::new_parse_deflate;
+
     use super::{*, deflate_block::decode_codelengths};
 
     #[test]
     fn test_decode_codelengths() {
-        // data: &mut BitStream, num_of_codes: usize, code_length_prefixes: &Vec<u16>, code_length_symbols: &Vec<u16>) -> Vec<u8>
-
         let code_length_prefixes: Vec<u16> = vec![12, 0, 13, 14, 15, 2];
         let code_length_symbols: Vec<u16> = vec![1, 2, 4, 16, 17, 18];
+        let code_length_codelengths = vec![4, 1, 4, 4, 4, 2];
 
         let num_of_codes: usize = 260;
 
@@ -204,7 +222,7 @@ mod tests {
         // 01011001 01000111 11111111 00010000 01111011 01111000 01000000 01010100 00101110 00111011 01101111 10111100 00111010 00011000 00000000
         let mut bs = BitStream::new(vec![89, 71, 255, 16, 123, 120, 64, 84, 46, 59, 111, 188, 58, 24, 0], false);
 
-        let result = decode_codelengths(&mut bs, num_of_codes, &code_length_prefixes, &code_length_symbols);
+        let result = decode_codelengths(&mut bs, num_of_codes, &code_length_prefixes, &code_length_symbols, &code_length_codelengths);
 
         let expected: Vec<u8> = vec![
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -225,7 +243,7 @@ mod tests {
 
         // same stream, parsing distance codes
         let num_of_dist_codes = 7;
-        let dist_result = decode_codelengths(&mut bs, num_of_dist_codes, &code_length_prefixes, &code_length_symbols);
+        let dist_result = decode_codelengths(&mut bs, num_of_dist_codes, &code_length_prefixes, &code_length_symbols, &code_length_codelengths);
         let expected_dist = vec![
             2, 0, 0, 0, 2, 2, 2
         ];
@@ -275,8 +293,6 @@ mod tests {
 
         let mut result = Vec::new();
         deflate_block::deflate_dynamic_huffman_block(&mut bs, &mut result);
-
-        println!("result {:?}", result);
         
         assert_eq!(result, vec![97, 98, 97, 97, 98, 98, 98, 97, 98, 97, 97, 98, 97, 98, 98, 97, 97, 98, 97, 98, 97, 97, 97, 97, 98, 97, 97, 97, 98, 98, 98, 98, 98, 97, 97]);
     }
