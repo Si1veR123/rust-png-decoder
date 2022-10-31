@@ -14,17 +14,6 @@ use std::path::Path;
 
 const FP: &str = r"E:\Programming\Rust\rust-png-decoder\pngtest_100x100.png";
 
-/*
-// fixed huffman codes generation
-let mut codelengths = vec![8; 144];
-codelengths.append(&mut ( vec![9; 112]));
-codelengths.append(&mut vec![7; 24]);
-codelengths.append(&mut vec![8; 8]);
-let prefixcodes = huffman_coding::prefix_codes_from_codelengths(codelengths);
-
-println!("{:?}", prefixcodes);
-*/
-
 fn main() {
     let mut file_buffer = Vec::<u8>::new();
 

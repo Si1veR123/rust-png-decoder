@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use crate::low_level_functions::bytes_vec_to_single;
-use crate::zlib::ZLibParser;
+use crate::zlib::{new_parse_zlib, ZLibInfo};
 
 // METADATA
 pub struct PNGMetadata {
@@ -73,16 +73,18 @@ pub struct PNGParser {
     pub image_data: RGBImageData,
     pub chunks: Vec<PNGChunk>,
     pub metadata: PNGMetadata,
+    pub zlib_info: ZLibInfo,
 }
 
 impl PNGParser {
     pub fn new(data: Vec<u8>) -> Self {
-        let (metadata, chunks, image_data) = Self::parse_png(data);
+        let (metadata, chunks, image_data, zlib_info) = Self::parse_png(data);
 
         Self {
             image_data,
             chunks,
             metadata,
+            zlib_info
         }
     }
 
@@ -93,7 +95,7 @@ impl PNGParser {
         mut_data.shrink_to_fit();
     }
 
-    pub fn parse_png(data: Vec<u8>) -> (PNGMetadata, Vec<PNGChunk>, RGBImageData) {
+    pub fn parse_png(data: Vec<u8>) -> (PNGMetadata, Vec<PNGChunk>, RGBImageData, ZLibInfo) {
         let filesize = (&data).len();
         let mut mut_data = data;
         mut_data.drain(0..8);
@@ -150,9 +152,9 @@ impl PNGParser {
             filesize: filesize as usize,
         };
 
-        let zlib_parser = ZLibParser::new(idat_combined);
-        let image_data = RGBImageData::from_png_stream(&zlib_parser.decompressed, metadata.width);
+        let (zlib, decompressed) = new_parse_zlib(idat_combined);
+        let image_data = RGBImageData::from_png_stream(&decompressed, metadata.width);
 
-        (metadata, chunks, image_data)
+        (metadata, chunks, image_data, zlib)
     }
 }
