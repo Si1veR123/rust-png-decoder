@@ -2,12 +2,13 @@ use std::fmt::Display;
 use crate::low_level_functions::bytes_vec_to_single;
 use crate::zlib::ZLibParser;
 
+// METADATA
 pub struct PNGMetadata {
     pub bit_depth: u8,
-    pub width: u32,
-    pub height: u32,
+    pub width: usize,
+    pub height: usize,
     pub color_type: u8,
-    pub filesize: u32,
+    pub filesize: usize,
 }
 
 impl Display for PNGMetadata {
@@ -16,6 +17,7 @@ impl Display for PNGMetadata {
     }
 }
 
+// PNG CHUNKS
 pub struct PNGChunk {
     pub chunk_type: String,
     pub chunk_data: Vec<u8>,
@@ -28,18 +30,57 @@ impl Display for PNGChunk {
     }
 }
 
+trait ImageData {
+    fn from_png_stream(data: &Vec<u8>, width: usize) -> Self;
+}
+
+// RAW IMAGE PIXELS
+pub struct RGBImageData {
+    pub data: Vec<Vec<[u8; 3]>>
+}
+
+impl ImageData for RGBImageData {
+    fn from_png_stream(data: &Vec<u8>, width: usize) -> Self {
+        let mut image_data = Vec::new();
+
+        let bits_row_width = width*3;
+
+        let mut row: usize = 0;
+        loop {
+            let mut row_pixels = Vec::with_capacity(width);
+
+            let filter_type = data.get(row * (bits_row_width+1));
+            if filter_type.is_none() { break }
+            if *filter_type.unwrap() != 0 { panic!("Unsupported filter type") }
+
+            let row_start = ((bits_row_width+1)*row) + 1;
+
+            for col in 0..width {
+                let pixel_start = row_start+(col*3);
+                row_pixels.push([data[pixel_start], data[pixel_start+1], data[pixel_start+2]])
+            }
+            image_data.push(row_pixels);
+            row += 1;
+        }
+        Self {
+            data: image_data
+        }
+    }
+}
+
+// PNG Parser
 pub struct PNGParser {
-    pub zlib_parser: ZLibParser,
+    pub image_data: RGBImageData,
     pub chunks: Vec<PNGChunk>,
     pub metadata: PNGMetadata,
 }
 
 impl PNGParser {
     pub fn new(data: Vec<u8>) -> Self {
-        let (metadata, chunks, zlib_parser) = Self::parse_png(data);
+        let (metadata, chunks, image_data) = Self::parse_png(data);
 
         Self {
-            zlib_parser,
+            image_data,
             chunks,
             metadata,
         }
@@ -52,7 +93,7 @@ impl PNGParser {
         mut_data.shrink_to_fit();
     }
 
-    pub fn parse_png(data: Vec<u8>) -> (PNGMetadata, Vec<PNGChunk>, ZLibParser) {
+    pub fn parse_png(data: Vec<u8>) -> (PNGMetadata, Vec<PNGChunk>, RGBImageData) {
         let filesize = (&data).len();
         let mut mut_data = data;
         mut_data.drain(0..8);
@@ -102,14 +143,16 @@ impl PNGParser {
         }
 
         let metadata = PNGMetadata {
-            width: bytes_vec_to_single(&ihdr.chunk_data[0..4].to_vec()),
-            height: bytes_vec_to_single(&ihdr.chunk_data[4..8].to_vec()),
+            width: bytes_vec_to_single(&ihdr.chunk_data[0..4].to_vec()) as usize,
+            height: bytes_vec_to_single(&ihdr.chunk_data[4..8].to_vec()) as usize,
             bit_depth: ihdr.chunk_data[8],
             color_type: ihdr.chunk_data[9],
-            filesize: filesize as u32,
+            filesize: filesize as usize,
         };
 
         let zlib_parser = ZLibParser::new(idat_combined);
-        (metadata, chunks, zlib_parser)
+        let image_data = RGBImageData::from_png_stream(&zlib_parser.decompressed, metadata.width);
+
+        (metadata, chunks, image_data)
     }
 }

@@ -147,7 +147,7 @@ pub fn decode_length(data: &mut BitStream, length_sym: u16) -> u16 {
 
     if num_extra_bits > 0 {
         let extra_bits = data.next_n(num_extra_bits);
-        bits_to_byte(&extra_bits, true) as u16 + length_base
+        (bits_to_byte(&extra_bits, false) >> (8-num_extra_bits)) as u16 + length_base
     } else {
         length_base
     }
@@ -167,7 +167,6 @@ pub fn decode_distance(data: &mut BitStream, dist_sym: u8) -> u16 {
         for (i, &bit) in extra_bits.iter().enumerate() {
             extra_bits_value = extra_bits_value | ((bit as u16) << i);
         }
-
         dist_base + extra_bits_value
 
     } else {

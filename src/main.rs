@@ -12,7 +12,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-const FP: &str = r"E:\Programming\Rust\rust-png-decoder\pngtest_photoshop.png";
+const FP: &str = r"E:\Programming\Rust\rust-png-decoder\pngtest_100x100.png";
 
 /*
 // fixed huffman codes generation
@@ -42,5 +42,5 @@ fn main() {
         println!("{}", chunk);
     }
 
-    println!("{}", parser.zlib_parser);
+    println!("{:?}", parser.image_data.data);
 }

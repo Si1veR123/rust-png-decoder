@@ -30,11 +30,11 @@ pub fn bits_to_byte(bits: &Vec<u8>, big_endian: bool) -> u8 {
 }
 
 pub fn adler_32(bytes: &Vec<u8>) -> u32 {
-    let mut a = 1u16;
-    let mut b = 0u16;
+    let mut a = 1u32;
+    let mut b = 0u32;
 
     for &byte in bytes {
-        a = (a + (byte as u16)) % 65521;
+        a = (a + (byte as u32)) % 65521;
         b = (b + a) % 65521;
     }
 
