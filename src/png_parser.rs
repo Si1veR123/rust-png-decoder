@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use crate::low_level_functions::bytes_vec_to_single;
+use crate::token::Token;
 use crate::zlib::{new_parse_zlib, ZLibInfo};
 
 // METADATA
@@ -21,12 +22,11 @@ impl Display for PNGMetadata {
 pub struct PNGChunk {
     pub chunk_type: String,
     pub chunk_data: Vec<u8>,
-    pub crc: u32,
 }
 
 impl Display for PNGChunk {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CHUNK_LENGTH {}, CHUNK_TYPE {}, CRC {}", self.chunk_data.len(), self.chunk_type, self.crc)
+        write!(f, "CHUNK_LENGTH {}, CHUNK_TYPE {}", self.chunk_data.len(), self.chunk_type)
     }
 }
 
@@ -70,21 +70,17 @@ impl ImageData for RGBImageData {
 
 // PNG Parser
 pub struct PNGParser {
+    pub tokens: Vec<Token>,
     pub image_data: RGBImageData,
-    pub chunks: Vec<PNGChunk>,
-    pub metadata: PNGMetadata,
-    pub zlib_info: ZLibInfo,
 }
 
 impl PNGParser {
     pub fn new(data: Vec<u8>) -> Self {
-        let (metadata, chunks, image_data, zlib_info) = Self::parse_png(data);
+        let (tokens, image_data) = Self::parse_png(data);
 
         Self {
             image_data,
-            chunks,
-            metadata,
-            zlib_info
+            tokens
         }
     }
 
@@ -95,20 +91,40 @@ impl PNGParser {
         mut_data.shrink_to_fit();
     }
 
-    pub fn parse_png(data: Vec<u8>) -> (PNGMetadata, Vec<PNGChunk>, RGBImageData, ZLibInfo) {
+    fn parse_png(data: Vec<u8>) -> (Vec<Token>, RGBImageData) {
+        let mut tokens: Vec<Token> = Vec::new();
+
         let filesize = (&data).len();
         let mut mut_data = data;
-        mut_data.drain(0..8);
+        let header = mut_data.drain(0..8);
 
-        let mut chunks: Vec<PNGChunk> = Vec::new();
+        tokens.push(
+            Token {
+                bits: header.into_iter().collect(),
+                using_bytes: true,
+                nest_level: 2,
+                data: "png header".to_string(),
+                token_type: "header".to_string(),
+                description: "All PNGs contain these bytes".to_string()
+            }
+        );
+
         let mut idat_combined: Vec<u8> = Vec::new();
+        let mut ihdr: Option<PNGChunk> = None;
+        let mut parsing_idat = false;
+        let mut decompressed = Vec::new();
 
         while mut_data.len() > 12 {  // 12 so IEND chunk isn't included
-            // first 4 bytes are chunk length
-            let chunk_length = bytes_vec_to_single(&mut_data[0..4].to_vec());
-            // next 4 bytes are chunk type
-            let chunk_type: String = mut_data[4..8].iter().map(|x| *x as char).collect();
 
+            // first 4 bytes are chunk length
+            let chunk_length_bytes = mut_data[0..4].to_vec();
+            let chunk_length = bytes_vec_to_single(&chunk_length_bytes);
+
+            // next 4 bytes are chunk type
+            let chunk_type_bytes = &mut_data[4..8];
+            let chunk_type: String = chunk_type_bytes.iter().map(|x| *x as char).collect();
+
+            // non essential chunks are skipped
             if chunk_type.chars().nth(0).expect("No chunk type").is_lowercase() {
                 Self::finish_read_chunk(&mut mut_data, &chunk_length);
                 continue;
@@ -116,45 +132,163 @@ impl PNGParser {
 
             // next *chunk length* bytes are chunk data
             let data_chunk_end = 8+(chunk_length as usize);
-            let chunk_data = mut_data[8..data_chunk_end].iter().cloned().collect::<Vec<u8>>();
-            if chunk_type == "IDAT".to_string() {
-                idat_combined.extend(chunk_data);
-                Self::finish_read_chunk(&mut mut_data, &chunk_length);
-                continue;
+            let mut chunk_data = mut_data[8..data_chunk_end].iter().cloned().collect::<Vec<u8>>();
+
+            if chunk_type == "IHDR".to_string() {
+                ihdr = Some(PNGChunk {
+                    chunk_type: chunk_type.clone(),
+                    chunk_data: chunk_data.clone()
+                });
+            } else {
+                if chunk_type == "IDAT".to_string() {
+                    if !parsing_idat {
+                        // first IDAT chunk
+                        tokens.push(
+                            Token {
+                                bits: vec![],
+                                using_bytes: false,
+                                nest_level: 2,
+                                data: "IDAT start".to_string(),
+                                token_type: "idat_start".to_string(),
+                                description: "Start of image data chunks, following data is all IDAT chunks combined".to_string()
+                            }
+                        );
+                    }
+
+                    parsing_idat = true;
+
+                    idat_combined.extend(chunk_data);
+                    Self::finish_read_chunk(&mut mut_data, &chunk_length);
+                    continue;
+                } else if parsing_idat {
+                    // ended idat chunks
+                    let (zlib_tokens, decompressed_d) = new_parse_zlib(&idat_combined);
+                    decompressed = decompressed_d;
+                    tokens.extend(zlib_tokens);
+
+                    tokens.push(
+                        Token {
+                            bits: vec![],
+                            using_bytes: false,
+                            nest_level: 2,
+                            data: "IDAT end".to_string(),
+                            token_type: "idat_end".to_string(),
+                            description: "End of combined IDAT chunks".to_string()
+                        }
+                    );
+                }
             }
 
             // next 4 bytes are crc-32 check
-            let crc = bytes_vec_to_single(&mut_data[data_chunk_end..data_chunk_end+4].iter().cloned().collect());
+            let crc_bytes = &mut_data[data_chunk_end..data_chunk_end+4];
+            // let crc = bytes_vec_to_single(&crc_bytes.iter().cloned().collect());
 
-            let current_chunk = PNGChunk {
-                chunk_data,
-                chunk_type,
-                crc,
-            };
-            chunks.push(current_chunk);
+            tokens.push(
+                Token {
+                    bits: chunk_length_bytes,
+                    using_bytes: true,
+                    nest_level: 2,
+                    data: format!("length {}", chunk_length),
+                    token_type: "chunk_length".to_string(),
+                    description: "Number of bytes in chunk data".to_string()
+                }
+            );
+
+            tokens.push(
+                Token {
+                    bits: chunk_type_bytes.to_vec(),
+                    using_bytes: true,
+                    nest_level: 2,
+                    data: format!("chunk type {}", chunk_type),
+                    token_type: "chunk_type".to_string(),
+                    description: "Type of chunk".to_string()
+                }
+            );
+
+            tokens.push(
+                Token {
+                    bits: chunk_data,
+                    using_bytes: true,
+                    nest_level: 2,
+                    data: "chunk data".to_string(),
+                    token_type: "chunk_data".to_string(),
+                    description: "Chunk bytes".to_string()
+                }
+            );
+
+            tokens.push(
+                Token {
+                    bits: crc_bytes.to_vec(),
+                    using_bytes: true,
+                    nest_level: 2,
+                    data: "crc-32".to_string(),
+                    token_type: "crc_32".to_string(),
+                    description: "crc-32 check on chunk type and chunk data".to_string()
+                }
+            );
+
             Self::finish_read_chunk(&mut mut_data, &chunk_length);
         }
 
-        let ihdr = chunks.get(0).expect("No chunks");
-        if ihdr.chunk_type != "IHDR".to_string() {
-            panic!("First chunk isn't IHDR. Parse failed.")
-        }
+        let ihdr = ihdr.expect("No IHDR Chunk");
 
         if idat_combined.len() == 0 {
             panic!("No IDAT chunks found")
         }
 
-        let metadata = PNGMetadata {
-            width: bytes_vec_to_single(&ihdr.chunk_data[0..4].to_vec()) as usize,
-            height: bytes_vec_to_single(&ihdr.chunk_data[4..8].to_vec()) as usize,
-            bit_depth: ihdr.chunk_data[8],
-            color_type: ihdr.chunk_data[9],
-            filesize: filesize as usize,
-        };
+        let width_bytes = ihdr.chunk_data[0..4].to_vec();
+        let width = bytes_vec_to_single(&width_bytes) as usize;
 
-        let (zlib, decompressed) = new_parse_zlib(idat_combined);
-        let image_data = RGBImageData::from_png_stream(&decompressed, metadata.width);
+        let height_bytes = ihdr.chunk_data[4..8].to_vec();
+        let height = bytes_vec_to_single(&height_bytes) as usize;
 
-        (metadata, chunks, image_data, zlib)
+        // header data placed 1 token after the main PNG header
+        tokens.insert(1, 
+            Token {
+                bits: width_bytes,
+                using_bytes: true,
+                nest_level: 2,
+                data: format!("Width: {}", width),
+                token_type: "width".to_string(),
+                description: "Image width".to_string()
+            }
+        );
+
+        tokens.insert(2, 
+            Token {
+                bits: height_bytes,
+                using_bytes: true,
+                nest_level: 2,
+                data: format!("Height: {}", height),
+                token_type: "height".to_string(),
+                description: "Image height".to_string()
+            }
+        );
+
+        tokens.insert(3, 
+            Token {
+                bits: vec![ihdr.chunk_data[8]],
+                using_bytes: true,
+                nest_level: 2,
+                data: format!("Bit depth: {}", ihdr.chunk_data[8]),
+                token_type: "bit_depth".to_string(),
+                description: "Image bit depth".to_string()
+            }
+        );
+
+        tokens.insert(4, 
+            Token {
+                bits: vec![ihdr.chunk_data[9]],
+                using_bytes: true,
+                nest_level: 2,
+                data: format!("Color Type: {}", ihdr.chunk_data[9]),
+                token_type: "color_type".to_string(),
+                description: "PNG image color type".to_string()
+            }
+        );
+
+        let image_data = RGBImageData::from_png_stream(&decompressed, width);
+
+        (tokens, image_data)
     }
 }

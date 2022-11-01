@@ -1,6 +1,6 @@
 use core::panic;
 
-use crate::{bitstream::BitStream, low_level_functions::bits_to_byte};
+use crate::{bitstream::BitStream, low_level_functions::bits_to_byte, token::Token};
 
 // === CONSTANTS ===
 
@@ -60,16 +60,21 @@ pub fn prefix_codes_from_codelengths(codelengths: Vec<u8>) -> Vec<u16> {
     prefix_codes
 }
 
-pub fn next_huffman_symbol(data: &mut BitStream, symbols: &Vec<u16>, prefixes: &Vec<u16>, codelengths: &Vec<u8>, big_endian: bool) -> u16 {
+pub fn next_huffman_symbol(data: &mut BitStream, symbols: &Vec<u16>, prefixes: &Vec<u16>, codelengths: &Vec<u8>, big_endian: bool) -> (u16, Vec<u8>) {
     let mut current_prefix = 0;
     let mut current_codelength: u8 = 0;
     let symbol;
+    let mut bits: Vec<u8> = Vec::new();
 
     loop {
         if big_endian {
-            current_prefix = (current_prefix << 1) | (data.next().unwrap() as u16);
+            let next_bit = data.next().unwrap();
+            current_prefix = (current_prefix << 1) | (next_bit as u16);
+            bits.push(next_bit);
         } else {
-            current_prefix = current_prefix | ((data.next().unwrap() as u16) << current_codelength);
+            let next_bit = data.next().unwrap();
+            current_prefix = current_prefix | ((next_bit as u16) << current_codelength);
+            bits.push(next_bit);
         }
         current_codelength += 1;
 
@@ -90,32 +95,42 @@ pub fn next_huffman_symbol(data: &mut BitStream, symbols: &Vec<u16>, prefixes: &
         break;
     }
 
-    symbol
+    (symbol, bits)
 }
 
-pub fn next_fixed_huffman_symbol(data: &mut BitStream) -> u16 {
-    let first_7 = bits_to_byte(&data.next_n(7), true) as u16;
+
+pub fn next_fixed_huffman_symbol(data: &mut BitStream) -> (u16, Vec<u8>) {
+    let mut first_bits = data.next_n(7);
+    let first_7 = bits_to_byte(&first_bits, true) as u16;
     let symbol7 = FIXED_HUFFMAN_CODES_7.iter().position(|&x| x == first_7);
     if symbol7.is_some() {
-        return (symbol7.unwrap() as u16) + 256
+        return ((symbol7.unwrap() as u16) + 256, first_bits)
     }
-    let first_8 = (first_7 << 1) | (data.next().unwrap() as u16);
+
+    let next_bit = data.next().unwrap();
+    let first_8 = (first_7 << 1) | (next_bit as u16);
+    first_bits.push(next_bit);
     
     let symbol8 = FIXED_HUFFMAN_CODES_8.iter().position(|&x| x == first_8);
     if symbol8.is_some() {
-        return symbol8.unwrap() as u16
+        return (symbol8.unwrap() as u16, first_bits)
     }
     let symbol8_2 = FIXED_HUFFMAN_CODES_8_2.iter().position(|&x| x == first_8);
     if symbol8_2.is_some() {
-        return (symbol8_2.unwrap() as u16) + 280
+        return ((symbol8_2.unwrap() as u16) + 280, first_bits)
     }
-    let first_9 = (first_8 << 1) | (data.next().unwrap() as u16);
+
+    let next_bit = data.next().unwrap();
+    first_bits.push(next_bit);
+    let first_9 = (first_8 << 1) | (next_bit as u16);
     let symbol9 = FIXED_HUFFMAN_CODES_9.iter().position(|&x| x == first_9);
     if symbol9.is_some() {
-        return (symbol9.unwrap() as u16) + 144
+        return ((symbol9.unwrap() as u16) + 144, first_bits)
     }
+
     panic!("Can't get fixed huffman code")
 }
+
 
 pub fn huffman_codes_from_codelengths(codelengths: &Vec<u8>) -> (Vec<u16>, Vec<u16>) {
     // returns same size vectors of symbols, and prefixes
