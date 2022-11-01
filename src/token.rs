@@ -1,5 +1,7 @@
+use std::fmt::Debug;
 
-#[derive(Debug)]
+
+
 pub struct Token {
     pub bits: Vec<u8>,
     pub using_bytes: bool, // if the 'bits' field actually stores byte values instead
@@ -9,9 +11,29 @@ pub struct Token {
     pub description: String,
 }
 
+impl Debug for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // json for token
+        write!(f, "{{\"bits\": {:?}, \"using_bytes\": {}, \"nest_level\": {}, \"data\": \"{}\", \"token_type\": \"{}\", \"description\": \"{}\"}}", self.bits, self.using_bytes, self.nest_level, self.data, self.token_type, self.description)
+    }
+}
 
 pub fn literal_token(literal: u8, bits: Option<Vec<u8>>, nest_level: u8) -> Token {
-    let data = (literal.to_string()) + ": " + &(literal as char).to_string();
+    // under 32 can cause problematic json
+    let data;
+    if literal > 31 {
+        if literal == 92 {
+            // escape \
+            data = (literal.to_string()) + r": \\ ";
+        } else if literal == 34 {
+            // escape "
+            data = (literal.to_string()) + ": " + r"\" + "\"";
+        } else {
+            data = (literal.to_string()) + ": " + &(literal as char).to_string();
+        }
+    } else {
+        data = literal.to_string();
+    }
 
     if bits.is_none() {
         return Token {
