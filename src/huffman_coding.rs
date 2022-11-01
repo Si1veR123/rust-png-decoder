@@ -1,6 +1,6 @@
 use core::panic;
 
-use crate::{bitstream::BitStream, low_level_functions::bits_to_byte, token::Token};
+use crate::{bitstream::BitStream, low_level_functions::bits_to_byte};
 
 // === CONSTANTS ===
 

@@ -1,6 +1,6 @@
-use std::fmt::{Display, Debug};
+use std::fmt::Display;
 use crate::deflate::new_parse_deflate;
-use crate::low_level_functions::{bytes_vec_to_single, adler_32};
+use crate::low_level_functions::bytes_vec_to_single;
 use crate::token::Token;
 
 
@@ -51,16 +51,13 @@ pub fn new_parse_zlib(data: &Vec<u8>) -> (Vec<Token>, Vec<u8>) {
     assert_eq!((((cmf as u16) << 8) | (flg as u16))%31, 0);
 
     let fdict = (flg & 32u8) >> 5;
-    let dictid: Option<[u8; 4]>;
     let deflate_data_start: usize;
     match fdict {
         0 => {
-            dictid = None;
             deflate_data_start = 2;
         },
         1 => {
-            let dictdata = data[2..6].try_into().expect("Can't get bytes 2-5 in ZLib stream");
-            dictid = Some(dictdata);
+            let dictdata: [u8; 4] = data[2..6].try_into().expect("Can't get bytes 2-5 in ZLib stream");
 
             tokens.push(
                 Token {

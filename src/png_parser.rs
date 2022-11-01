@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use crate::low_level_functions::bytes_vec_to_single;
 use crate::token::Token;
-use crate::zlib::{new_parse_zlib, ZLibInfo};
+use crate::zlib::new_parse_zlib;
 
 // METADATA
 pub struct PNGMetadata {
@@ -94,7 +94,7 @@ impl PNGParser {
     fn parse_png(data: Vec<u8>) -> (Vec<Token>, RGBImageData) {
         let mut tokens: Vec<Token> = Vec::new();
 
-        let filesize = (&data).len();
+        let _filesize = (&data).len();
         let mut mut_data = data;
         let header = mut_data.drain(0..8);
 
@@ -132,7 +132,7 @@ impl PNGParser {
 
             // next *chunk length* bytes are chunk data
             let data_chunk_end = 8+(chunk_length as usize);
-            let mut chunk_data = mut_data[8..data_chunk_end].iter().cloned().collect::<Vec<u8>>();
+            let chunk_data = mut_data[8..data_chunk_end].iter().cloned().collect::<Vec<u8>>();
 
             if chunk_type == "IHDR".to_string() {
                 ihdr = Some(PNGChunk {

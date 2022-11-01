@@ -1,5 +1,5 @@
 use crate::bitstream::BitStream;
-use crate::{huffman_coding::*, token};
+use crate::huffman_coding::*;
 use crate::low_level_functions::{bytes_vec_to_single, bits_to_byte};
 use crate::token::{Token, literal_token, reference_token};
 
@@ -91,7 +91,7 @@ fn deflate_uncompressed_block(data: &mut BitStream, symbol_buffer: &mut Vec<u8>)
     tokens.push(length_token);
     tokens.push(length_compliment_token);
 
-    for l in 0..length {
+    for _l in 0..length {
         let next_byte = data.next_byte();
 
         let token = literal_token(next_byte, None, 0);
@@ -476,7 +476,7 @@ mod tests {
     #[test]
     fn test() {
         // 00011101 11000110 01001001 00000001 00000000 00000000 00010000 01000000 11000000 10101100 10100011 01111111 10001000 00111101 00111100 00100000 00101010 10010111 10011101 00110111 01011110 00011101 00001100
-        let mut data = vec![29, 198, 73, 1, 0, 0, 16, 64, 192, 172, 163, 127, 136, 61, 60, 32, 42, 151, 157, 55, 94, 29, 12];
+        let data = vec![29, 198, 73, 1, 0, 0, 16, 64, 192, 172, 163, 127, 136, 61, 60, 32, 42, 151, 157, 55, 94, 29, 12];
 
         let (tokens, decompressed) = new_parse_deflate(data);
 
