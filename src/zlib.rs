@@ -28,7 +28,7 @@ pub fn new_parse_zlib(data: &Vec<u8>) -> (Vec<Token>, Vec<u8>) {
             bits: vec![cmf],
             using_bytes: true,
             nest_level: 1,
-            data: format!("CINFO: {}{}{}{} CM: {}{}{}{}", cmf&1, (cmf&2)>>1, (cmf&4)>>2, (cmf&8)>>3, (cmf&16)>>4, (cmf&32)>>5, (cmf&64)>>6, (cmf&128)>>7), // messy way of making binary string
+            data: format!("CINFO: {}{}{}{} CM: {}{}{}{}", (cmf&128)>>7, (cmf&64)>>6, (cmf&32)>>5, (cmf&16)>>4, (cmf&8)>>3, (cmf&4)>>2, (cmf&2)>>1, cmf&1), // messy way of making binary string
             token_type: "CMF".to_string(),
             description: "0-3 is compression method, 4-7 is compression info".to_string()
         }
@@ -41,7 +41,7 @@ pub fn new_parse_zlib(data: &Vec<u8>) -> (Vec<Token>, Vec<u8>) {
             bits: vec![flg],
             using_bytes: true,
             nest_level: 1,
-            data: format!("FLEVEL: {}{} FDICT: {} FCHECK: {}{}{}{}{}", flg&1, (flg&2)>>1, (flg&4)>>2, (flg&8)>>3, (flg&16)>>4, (flg&32)>>5, (flg&64)>>6, (flg&128)>>7), // messy way of making binary string
+            data: format!("FLEVEL: {}{} FDICT: {} FCHECK: {}{}{}{}{}", (flg&128)>>7, (flg&64)>>6, (flg&32)>>5, (flg&16)>>4, (flg&8)>>3, (flg&4)>>2, (flg&2)>>1, flg&1), // messy way of making binary string
             token_type: "FLG".to_string(),
             description: "0-4 are check bits, 5 shows if there is preset dictionary, 6-7 is compression level".to_string()
         }

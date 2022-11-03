@@ -110,13 +110,15 @@ fn deflate_fixed_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u8>
         let (symbol, bits) = next_fixed_huffman_symbol(data);
 
         if symbol > 256 {
-            let length = decode_length(data, symbol);
-            let distance_symbol = bits_to_byte(&data.next_n(5), true);
-            let distance = decode_distance(data, distance_symbol);
+            let (extra_length_bits, length) = decode_length(data, symbol);
+            let distance_symbol_bits = data.next_n(5);
+            let distance_symbol = bits_to_byte(&distance_symbol_bits, true);
+            let (extra_distance_bits, distance) = decode_distance(data, distance_symbol);
 
             let duplicate_values = decode_duplicate_reference(symbol_buffer, length, distance);
 
-            tokens.push(reference_token(bits, distance, length, 0));
+            // bits + extra_length_bits + distance_symbol_bits + extra_distance_bits
+            tokens.push(reference_token([bits, extra_length_bits, distance_symbol_bits, extra_distance_bits].concat(), distance, length, 0));
 
             symbol_buffer.extend(duplicate_values);
         }
@@ -284,7 +286,7 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             bits: num_of_dist_codes_bits,
             using_bytes: false,
             nest_level: 0,
-            data: num_of_normal_codes.to_string(),
+            data: num_of_dist_codes.to_string(),
             token_type: "HDIST".to_string(),
             description: "# of Distance codes".to_string(),
         }
@@ -325,7 +327,7 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             using_bytes: false,
             nest_level: 0,
             data: format!("{:?}", code_length_codelengths),
-            token_type: "HCLEN".to_string(),
+            token_type: "CLEN codelengths".to_string(),
             description: "Codelengths for codelength alphabet, reordered.".to_string(),
         }
     );
@@ -413,11 +415,11 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
     loop {
         let (symbol, symbol_bits) = next_huffman_symbol(data, &huffman_normal_symbols, &huffman_normal_prefixes, &huffman_normal_codelengths, true);
         if symbol > 256 {
-            let length = decode_length(data, symbol);
+            let (extra_length_bits, length) = decode_length(data, symbol);
 
             let (distance_symbol, distance_symbol_bits) = next_huffman_symbol(data, &huffman_distance_symbols, &huffman_distance_prefixes, &huffman_distance_codelengths, true);
 
-            let distance = decode_distance(data, distance_symbol as u8);
+            let (extra_distance_bits, distance) = decode_distance(data, distance_symbol as u8);
             let duplicate_values = decode_duplicate_reference(symbol_buffer, length, distance);
             symbol_buffer.extend(duplicate_values);
 
@@ -464,6 +466,21 @@ pub fn new_parse_deflate(data: Vec<u8>) -> (Vec<Token>, Vec<u8>) {
         if bfinal {
             break
         }
+    }
+
+    let padding = (bit_stream.bytes.len()*8) - bit_stream.current_abs_bit_position();
+    
+    if padding > 0 {
+        all_tokens.push(
+            Token {
+                bits: vec![0; padding],
+                using_bytes: false,
+                nest_level: 0,
+                data: "End of deflate padding".to_string(),
+                token_type: "padding".to_string(),
+                description: "Padding after deflate stream to next byte boundary".to_string()
+            }
+        )
     }
 
     (all_tokens, decompressed_data)

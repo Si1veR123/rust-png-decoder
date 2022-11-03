@@ -61,7 +61,7 @@ pub fn reference_token(bits: Vec<u8>, distance: u16, length: u16, nest_level: u8
         bits,
         using_bytes: false,
         nest_level,
-        data: format!("<{}, {}>", length, distance),
+        data: format!(r"< len {}, dist {} >", length, distance),
         token_type: "string reference".to_string(),
         description: "Duplicates a string from the stream".to_string(),
     }

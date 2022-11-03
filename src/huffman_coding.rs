@@ -154,7 +154,7 @@ pub fn huffman_codes_from_codelengths(codelengths: &Vec<u8>) -> (Vec<u16>, Vec<u
     (symbols, prefixes)
 }
 
-pub fn decode_length(data: &mut BitStream, length_sym: u16) -> u16 {
+pub fn decode_length(data: &mut BitStream, length_sym: u16) -> (Vec<u8>, u16) {
     let index = (length_sym - 257) as usize;
     let length_base = *LENGTH_BASES.get(index).unwrap();
 
@@ -162,13 +162,14 @@ pub fn decode_length(data: &mut BitStream, length_sym: u16) -> u16 {
 
     if num_extra_bits > 0 {
         let extra_bits = data.next_n(num_extra_bits);
-        (bits_to_byte(&extra_bits, false) >> (8-num_extra_bits)) as u16 + length_base
+        let length = (bits_to_byte(&extra_bits, false) >> (8-num_extra_bits)) as u16 + length_base;
+        (extra_bits, length)
     } else {
-        length_base
+        (vec![], length_base)
     }
 }
 
-pub fn decode_distance(data: &mut BitStream, dist_sym: u8) -> u16 {
+pub fn decode_distance(data: &mut BitStream, dist_sym: u8) -> (Vec<u8>, u16) {
     let index = dist_sym as usize;
     let dist_base = *DIST_BASES.get(index).unwrap();
 
@@ -182,10 +183,10 @@ pub fn decode_distance(data: &mut BitStream, dist_sym: u8) -> u16 {
         for (i, &bit) in extra_bits.iter().enumerate() {
             extra_bits_value = extra_bits_value | ((bit as u16) << i);
         }
-        dist_base + extra_bits_value
+        (extra_bits, dist_base + extra_bits_value)
 
     } else {
-        dist_base
+        (vec![], dist_base)
     }
 }
 
@@ -217,26 +218,26 @@ mod tests {
         let mut bs = BitStream::new(vec![154, 223, 23], false);
 
         // no extra bits, 259 symbol
-        assert_eq!(decode_length(&mut bs, 259), 5);
+        assert_eq!(decode_length(&mut bs, 259).1, 5);
 
         // 1 extra bit, 268 symbol, where next bit is 0
-        assert_eq!(decode_length(&mut bs, 268), 17);
+        assert_eq!(decode_length(&mut bs, 268).1, 17);
 
         // 1 extra bit, 268 symbol, where next bit is 1
-        assert_eq!(decode_length(&mut bs, 268), 18);
+        assert_eq!(decode_length(&mut bs, 268).1, 18);
 
         // 5 extra bits, 282 symbol, next bits 01100, 175 = 163 + 12
-        assert_eq!(decode_length(&mut bs, 282), 175);
+        assert_eq!(decode_length(&mut bs, 282).1, 175);
 
         // no extra bits, 285 symbol
-        assert_eq!(decode_length(&mut bs, 285), 258);
+        assert_eq!(decode_length(&mut bs, 285).1, 258);
 
         // false
         // next bit 1
-        assert_ne!(decode_length(&mut bs, 268), 17);
+        assert_ne!(decode_length(&mut bs, 268).1, 17);
         
         // next bits 111
-        assert_ne!(decode_length(&mut bs, 274), 46);
+        assert_ne!(decode_length(&mut bs, 274).1, 46);
     }
 
     #[test]
@@ -245,16 +246,16 @@ mod tests {
         let mut bs = BitStream::new(vec![154, 223, 23], false);
 
         // no extra bits
-        assert_eq!(decode_distance(&mut bs, 2), 3);
+        assert_eq!(decode_distance(&mut bs, 2).1, 3);
 
         // next bit 0
-        assert_eq!(decode_distance(&mut bs, 5), 7);
+        assert_eq!(decode_distance(&mut bs, 5).1, 7);
 
         // next bits 101100
-        assert_eq!(decode_distance(&mut bs, 14), 142);
+        assert_eq!(decode_distance(&mut bs, 14).1, 142);
         
         // next bits 1111110111110
-        assert_eq!(decode_distance(&mut bs, 28), 20416);
+        assert_eq!(decode_distance(&mut bs, 28).1, 20416);
     }
 
     #[test]

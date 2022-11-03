@@ -114,7 +114,7 @@ impl PNGParser {
         let mut parsing_idat = false;
         let mut decompressed = Vec::new();
 
-        while mut_data.len() > 12 {  // 12 so IEND chunk isn't included
+        while mut_data.len() > 0 {
 
             // first 4 bytes are chunk length
             let chunk_length_bytes = mut_data[0..4].to_vec();
@@ -199,22 +199,25 @@ impl PNGParser {
                     bits: chunk_type_bytes.to_vec(),
                     using_bytes: true,
                     nest_level: 2,
-                    data: format!("chunk type {}", chunk_type),
+                    data: chunk_type.clone(),
                     token_type: "chunk_type".to_string(),
                     description: "Type of chunk".to_string()
                 }
             );
 
-            tokens.push(
-                Token {
-                    bits: chunk_data,
-                    using_bytes: true,
-                    nest_level: 2,
-                    data: "chunk data".to_string(),
-                    token_type: "chunk_data".to_string(),
-                    description: "Chunk bytes".to_string()
-                }
-            );
+            if chunk_type != "IHDR".to_string() {
+                // dont include chunk data for IHDR
+                tokens.push(
+                    Token {
+                        bits: chunk_data,
+                        using_bytes: true,
+                        nest_level: 2,
+                        data: "chunk data".to_string(),
+                        token_type: "chunk_data".to_string(),
+                        description: "Chunk bytes".to_string()
+                    }
+                );
+            }
 
             tokens.push(
                 Token {
@@ -242,48 +245,78 @@ impl PNGParser {
         let height_bytes = ihdr.chunk_data[4..8].to_vec();
         let height = bytes_vec_to_single(&height_bytes) as usize;
 
-        // header data placed 1 token after the main PNG header
-        tokens.insert(1, 
+        // header data placed 3 token after the main PNG header
+        tokens.insert(3, 
             Token {
                 bits: width_bytes,
                 using_bytes: true,
-                nest_level: 2,
-                data: format!("Width: {}", width),
+                nest_level: 1,
+                data: format!("{}", width),
                 token_type: "width".to_string(),
                 description: "Image width".to_string()
             }
         );
 
-        tokens.insert(2, 
+        tokens.insert(4, 
             Token {
                 bits: height_bytes,
                 using_bytes: true,
-                nest_level: 2,
-                data: format!("Height: {}", height),
+                nest_level: 1,
+                data: format!("{}", height),
                 token_type: "height".to_string(),
                 description: "Image height".to_string()
             }
         );
 
-        tokens.insert(3, 
+        tokens.insert(5, 
             Token {
                 bits: vec![ihdr.chunk_data[8]],
                 using_bytes: true,
-                nest_level: 2,
-                data: format!("Bit depth: {}", ihdr.chunk_data[8]),
+                nest_level: 1,
+                data: format!("{}", ihdr.chunk_data[8]),
                 token_type: "bit_depth".to_string(),
                 description: "Image bit depth".to_string()
             }
         );
 
-        tokens.insert(4, 
+        tokens.insert(6, 
             Token {
                 bits: vec![ihdr.chunk_data[9]],
                 using_bytes: true,
-                nest_level: 2,
-                data: format!("Color Type: {}", ihdr.chunk_data[9]),
+                nest_level: 1,
+                data: format!("{}", ihdr.chunk_data[9]),
                 token_type: "color_type".to_string(),
                 description: "PNG image color type".to_string()
+            }
+        );
+        tokens.insert(7, 
+            Token {
+                bits: vec![ihdr.chunk_data[10]],
+                using_bytes: true,
+                nest_level: 1,
+                data: format!("{}", ihdr.chunk_data[10]),
+                token_type: "compression_method".to_string(),
+                description: "PNG Compression Method".to_string()
+            }
+        );
+        tokens.insert(8, 
+            Token {
+                bits: vec![ihdr.chunk_data[11]],
+                using_bytes: true,
+                nest_level: 1,
+                data: format!("{}", ihdr.chunk_data[11]),
+                token_type: "filter_method".to_string(),
+                description: "PNG Filter Method".to_string()
+            }
+        );
+        tokens.insert(9, 
+            Token {
+                bits: vec![ihdr.chunk_data[12]],
+                using_bytes: true,
+                nest_level: 1,
+                data: format!("{}", ihdr.chunk_data[12]),
+                token_type: "interlace_method".to_string(),
+                description: "PNG Interlace Method, either 'no interlace' or 'Adam7'".to_string()
             }
         );
 

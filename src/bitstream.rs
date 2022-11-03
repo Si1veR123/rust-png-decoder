@@ -2,7 +2,7 @@ use crate::low_level_functions::bits_to_byte;
 
 // Bit stream that takes a Vec of u8 bytes and can be iterated over, returning the bits, big endian or little endian.
 pub struct BitStream {
-    bytes: Vec<u8>,
+    pub bytes: Vec<u8>,
     pub byte_position: usize,
     pub bit_position: u8,  // big endian bit position (0 is 128 value, 7 is 1)
     big_endian: bool,
