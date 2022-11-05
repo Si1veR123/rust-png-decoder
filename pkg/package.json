@@ -1,0 +1,12 @@
+{
+  "name": "png-decoder",
+  "version": "0.1.0",
+  "files": [
+    "png_decoder_bg.wasm",
+    "png_decoder.js",
+    "png_decoder.d.ts"
+  ],
+  "module": "png_decoder.js",
+  "types": "png_decoder.d.ts",
+  "sideEffects": false
+}

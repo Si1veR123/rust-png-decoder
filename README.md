@@ -13,4 +13,5 @@ The javascript used on the site calls one of the functions from the wasm binary,
 The website front-end can be found in [pkg](./pkg/).  
 
 ## Running the website
-The website uses the rust decoder by compiling it into a wasm binary. To generate the wasm files, use [wasm-pack](https://developer.mozilla.org/en-US/docs/WebAssembly/Rust_to_wasm). Once the wasm files are generated (into the pkg folder), the pkg/ folder can be served.
+The pkg/ folder can be served. To rebuild the rust wasm binary
+use [wasm-pack](https://developer.mozilla.org/en-US/docs/WebAssembly/Rust_to_wasm). Once the wasm files are generated (into the pkg folder), the pkg/ folder can be served.
