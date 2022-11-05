@@ -2,7 +2,7 @@
 <html lang="en-US">
   <head>
     <meta charset="utf-8" />
-    <title>Zlib/PNG debugger</title>
+    <title>ZLib/PNG breakdown</title>
     <link rel="stylesheet" href="./main.css">
     <link rel="stylesheet"
       href="https://fonts.googleapis.com/css?family=Roboto+Mono">
@@ -41,6 +41,17 @@
 
     </script>
     <script src="main.js"></script>
+
+    <div id="nav-bar">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1 id="header">ZLib/PNG breakdown</h1>
+        <a target="_blank" href="https://github.com/Si1veR123/rust-png-decoder/tree/wasm-structure-tokenisation">GitHub Source</a>
+      </div>
+      <p>This tool can be used to debug ZLib encoders and decoders.</p>
+      <p>Data is processed with rust, compiled to web assembly.</p>
+      <p style="color: grey;">PNG decoder is very experimental</p>
+    </div>
+
     <div style="width:80%; padding: 0 10%;">
       <textarea wrap="hard" id="main-input-box" type="text">[120, 156, 29, 145, 91, 78, 67, 49, 12, 68, 61, 126, 47, 35, 172, 128, 127, 86, 192, 14, 248, 166, 16, 85, 72, 180, 69, 45, 8, 193, 234, 25, 35, 221, 232, 42, 137, 61, 62, 51, 121, 218, 239, 47, 151, 211, 94, 159, 151, 117, 250, 89, 191, 239, 111, 135, 251, 143, 243, 113, 189, 238, 195, 215, 241, 184, 175, 235, 123, 31, 110, 111, 159, 251, 110, 61, 238, 235, 94, 207, 92, 183, 41, 191, 62, 159, 95, 47, 167, 117, 254, 58, 29, 246, 245, 246, 176, 186, 195, 75, 160, 34, 10, 11, 164, 166, 65, 60, 69, 210, 34, 80, 40, 71, 154, 134, 73, 100, 186, 185, 138, 139, 90, 85, 123, 195, 209, 86, 170, 213, 255, 133, 188, 138, 110, 45, 169, 244, 14, 234, 104, 39, 172, 89, 19, 49, 219, 42, 183, 14, 107, 85, 47, 78, 147, 108, 206, 83, 112, 27, 61, 77, 208, 104, 222, 242, 203, 168, 110, 49, 45, 74, 179, 63, 141, 130, 198, 178, 156, 169, 130, 244, 108, 246, 113, 121, 6, 201, 130, 215, 5, 132, 193, 171, 204, 130, 244, 202, 131, 12, 97, 173, 128, 122, 214, 82, 244, 232, 136, 57, 43, 210, 192, 9, 235, 52, 4, 128, 110, 130, 211, 197, 194, 204, 218, 92, 138, 234, 168, 193, 235, 84, 77, 73, 72, 119, 182, 161, 50, 115, 6, 64, 212, 213, 220, 65, 102, 106, 52, 149, 24, 138, 104, 143, 150, 132, 79, 75, 78, 154, 5, 154, 128, 241, 128, 25, 149, 229, 252, 107, 98, 35, 253, 36, 88, 24, 124, 37, 118, 250, 244, 58, 227, 243, 64, 12, 62, 147, 30, 24, 34, 14, 25, 179, 164, 145, 137, 94, 132, 46, 136, 202, 167, 209, 152, 245, 239, 137, 239, 35, 102, 227, 185, 8, 215, 41, 243, 38, 243, 90, 52, 56, 154, 62, 228, 29, 202, 201, 229, 127, 73, 83, 33, 69]</textarea>
       <div style="height: 30px; width: 100%; display: flex; justify-content: center; margin: 0 20px; padding: 0;">
@@ -52,7 +63,7 @@
         <button onclick="decode_data(event)" style="background-color: rgb(189, 189, 216); cursor: pointer;">Decode Bytes</button>
       </div>
     </div>
-    <div id="tables-body">
+    <div id="tables-body" style="visibility: hidden;">
       <div style="width: 48%;">
         <table id="token-table">
           

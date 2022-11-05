@@ -78,9 +78,16 @@ function construct_token_row(token, i) {
   let tokenTypeDiv = document.createElement("div");
   tokenTypeDiv.classList.add("token-type-parent");
 
-  let tokenTypeText = document.createElement("span");
+  let tokenTypeText = document.createElement("div");
   tokenTypeText.classList.add("token-type");
+  tokenTypeText.classList.add("tooltip");
   tokenTypeText.innerText = token.token_type;
+
+  let tooltipText = document.createElement("span");
+  tooltipText.classList.add("tooltiptext");
+  tooltipText.innerText = token.description;
+
+  tokenTypeText.appendChild(tooltipText);
 
   let tokenDataDiv = document.createElement("div");
   tokenDataDiv.classList.add("token-data-parent");
@@ -117,6 +124,8 @@ function construct_token_row(token, i) {
 }
 
 function decoded_data_callback(decoded_tokens) {
+  document.getElementById("tables-body").style.visibility = "visible";
+
   let token_table = document.createElement("tbody");
   let bytes_table = document.createElement("tbody");
 

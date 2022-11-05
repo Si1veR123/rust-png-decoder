@@ -23,7 +23,7 @@ fn parse_next_block(data: &mut BitStream, symbol_buffer: &mut Vec<u8>) -> (bool,
         bits: vec![btype.0, btype.1],
         using_bytes: false,
         nest_level: 0,
-        data: if btype == (0, 0) {"uncompressed".to_string()} else if btype == (1, 0) {"fixed".to_string()} else if btype == (0, 1) {"dynamic".to_string()} else {"invalid".to_string()},
+        data: if btype == (0, 0) {"uncompressed".to_string()} else if btype == (1, 0) {"fixed huffman".to_string()} else if btype == (0, 1) {"dynamic huffman".to_string()} else {"invalid".to_string()},
         token_type: "btype".to_string(),
         description: "specifies block compression type".to_string()
     };
@@ -272,7 +272,7 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             using_bytes: false,
             nest_level: 0,
             data: num_of_normal_codes.to_string(),
-            token_type: "HLIT".to_string(),
+            token_type: "hlit".to_string(),
             description: "# of Literal/Length codes".to_string(),
         }
     );
@@ -286,7 +286,7 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             using_bytes: false,
             nest_level: 0,
             data: num_of_dist_codes.to_string(),
-            token_type: "HDIST".to_string(),
+            token_type: "hdist".to_string(),
             description: "# of Distance codes".to_string(),
         }
     );
@@ -301,7 +301,7 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             using_bytes: false,
             nest_level: 0,
             data: num_of_codelength_codes.to_string(),
-            token_type: "HCLEN".to_string(),
+            token_type: "hclen".to_string(),
             description: "# of Code Length codes".to_string(),
         }
     );
@@ -326,7 +326,7 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             using_bytes: false,
             nest_level: 0,
             data: format!("{:?}", code_length_codelengths),
-            token_type: "CLEN codelengths".to_string(),
+            token_type: "clen_codelengths".to_string(),
             description: "Codelengths for codelength alphabet, reordered.".to_string(),
         }
     );
@@ -369,8 +369,8 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             using_bytes: false,
             nest_level: 0,
             data: format!("{:?}", huffman_normal_symbols),
-            token_type: "normal_symbols".to_string(),
-            description: "Symbols for normal alphabet".to_string(),
+            token_type: "literal_length_symbols".to_string(),
+            description: "Symbols for literal/length alphabet".to_string(),
         }
     );
     tokens.push(
@@ -379,8 +379,8 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             using_bytes: false,
             nest_level: 0,
             data: format!("{:?}", huffman_normal_prefixes),
-            token_type: "normal_prefixes".to_string(),
-            description: "Prefixes for normal alphabet in base 10".to_string(),
+            token_type: "literal_length_prefixes".to_string(),
+            description: "Prefixes for literal/length alphabet in base 10".to_string(),
         }
     );
     let huffman_normal_codelengths: Vec<u8> = decoded_normal_codelengths.iter().cloned().filter(|&x| x > 0).collect();
