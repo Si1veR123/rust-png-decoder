@@ -30,6 +30,7 @@ function token_hover_over(id) {
   for (let token of tokens) {
     token.classList.add("highlighted-token")
   }
+  moveByteToView(tokens[0]);
 }
 
 function token_hover_out(id) {
@@ -40,22 +41,18 @@ function token_hover_out(id) {
 }
 
 function decode_data(evt) {
-  let data = window.inputted_bytes;
-  if (data == undefined) {
-    let textarea = document.getElementById("main-input-box");
-    let text_data = textarea.innerHTML;
-    
-    try {
-      let array = JSON.parse(text_data);
-      let typed_array = new Uint8Array(array);
-      window.inputted_bytes = typed_array;
-      data = typed_array;
-    } catch (err) {
-      alert("Can't decode data" + err)
-      return;
-    }
+  let textarea = document.getElementById("main-input-box");
+  let text_data = textarea.value;
+  
+  try {
+    let array = JSON.parse(text_data);
+    let typed_array = new Uint8Array(array);
+    window.inputted_bytes = typed_array;
+    data = typed_array;
+  } catch (err) {
+    alert("Can't decode data" + err)
+    return;
   }
-
   if (data[0] == 137 && data[1] == 80 && data[2] == 78 && data[3] == 71) {
     // PNG
     window.call_wasm_decode_png(data)
@@ -80,12 +77,14 @@ function construct_token_row(token, i) {
 }
 
 function decoded_data_callback(decoded_tokens) {
-  let token_table = document.getElementById("token-table");
-  let bytes_table = document.getElementById("bytes-table");
-  token_table.innerHTML = "";
+  let token_table = document.createElement("tbody");
+  let bytes_table = document.createElement("tbody");
+  // let token_table = document.getElementById("token-table");
+  // let bytes_table = document.getElementById("bytes-table");
+  //token_table.innerHTML = "";
 
   // empty table with headers
-  bytes_table.children[0].innerHTML = `<tr style="width: 100%;">
+  bytes_table.innerHTML = `<tr style="width: 100%;">
       <th>0</th>
       <th>1</th>
       <th>2</th>
@@ -121,13 +120,13 @@ function decoded_data_callback(decoded_tokens) {
     for (let bit of bits) {
       if (remaining_in_byte == 0) {
         // end of byte
-        current_byte_span = add_new_byte_span();
+        current_byte_span = add_new_byte_span(bytes_table);
         current_token = add_token_span(index, current_byte_span);
         remaining_in_byte = 8;
         byte_col += 1;
 
         if (byte_col == 8) {
-          bytes_table.children[0].appendChild(document.createElement("tr"));
+          bytes_table.appendChild(document.createElement("tr"));
           byte_col = 0;
         }
       }
@@ -141,12 +140,18 @@ function decoded_data_callback(decoded_tokens) {
       remaining_in_byte -= 1;
     }
   }
+  let token_table_element = document.getElementById("token-table");
+  token_table_element.textContent = "";
+  token_table_element.appendChild(token_table);
+
+  let byte_table_element = document.getElementById("bytes-table");
+  byte_table_element.textContent = "";
+  byte_table_element.appendChild(bytes_table);
 }
 window.decoded_callback = decoded_data_callback;
 
-function add_new_byte_span() {
-  let token_table = document.getElementById("bytes-table").children[0]; // gets tbody element
-  let row = token_table.children[token_table.children.length-1]; // last child didnt work?
+function add_new_byte_span(bytes_table) {
+  let row = bytes_table.lastChild;
   
   let tableData = document.createElement("td");
   let span = document.createElement("span");
@@ -178,4 +183,14 @@ function bytes_to_bits(bytes) {
     all_bits = all_bits.concat(bits);
   }
   return all_bits
+}
+
+function moveByteToView(byte) {
+  let bytesTable = document.getElementById("bytes-table")
+
+  let byteTop = byte.getBoundingClientRect().top;
+  let middleScreen = window.innerHeight / 4;
+  let shiftY = -(byteTop - middleScreen);
+
+  bytesTable.style.top = Math.max(0, bytesTable.offsetTop + shiftY) + "px";
 }

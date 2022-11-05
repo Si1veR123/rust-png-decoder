@@ -22,7 +22,6 @@ pub fn new_parse_zlib(data: &Vec<u8>) -> (Vec<Token>, Vec<u8>) {
     let mut tokens = Vec::new();
 
     let &cmf = data.get(0).expect("No ZLib stream found");
-
     tokens.push(
         Token {
             bits: vec![cmf],
@@ -74,17 +73,14 @@ pub fn new_parse_zlib(data: &Vec<u8>) -> (Vec<Token>, Vec<u8>) {
         },
         _ => panic!("Incorrect fdict bit")
     }
-
     let adler32_bytes = data[data.len()-4..].to_vec();
     let adler32_check = bytes_vec_to_single(&adler32_bytes);
-
 
     let (decompressed_tokens, decompressed) = new_parse_deflate(
         data[deflate_data_start..(data.len()-4)]
             .try_into()
             .expect("Can't get deflate compressed data")
         );
-    
     tokens.extend(decompressed_tokens);
 
     tokens.push(

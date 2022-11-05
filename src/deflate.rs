@@ -19,7 +19,6 @@ fn parse_next_block(data: &mut BitStream, symbol_buffer: &mut Vec<u8>) -> (bool,
     };
 
     let btype = (data.next().unwrap(), data.next().unwrap());
-
     let btype_token = Token {
         bits: vec![btype.0, btype.1],
         using_bytes: false,
@@ -51,7 +50,7 @@ fn deflate_uncompressed_block(data: &mut BitStream, symbol_buffer: &mut Vec<u8>)
             bits: vec![0; (8-data.bit_position) as usize],
             using_bytes: false,
             nest_level: 0,
-            data: "n/a".to_string(),
+            data: "padding".to_string(),
             token_type: "padding".to_string(),
             description: "padding to next byte".to_string(),
         };
@@ -66,9 +65,10 @@ fn deflate_uncompressed_block(data: &mut BitStream, symbol_buffer: &mut Vec<u8>)
 
     // check against backup length (next 2 bytes), which is the bitwise NOT of len
     let compliment_bytes = ( data.next_byte(), data.next_byte() );
+
     assert_eq!(length_bytes, (!compliment_bytes.0, !compliment_bytes.1));
 
-    let length = bytes_vec_to_single(&vec![length_bytes.0, length_bytes.1]) as usize;
+    let length = bytes_vec_to_single(&vec![length_bytes.1, length_bytes.0]) as usize;
 
     let length_token = Token {
         bits: vec![length_bytes.0, length_bytes.1],
@@ -108,7 +108,6 @@ fn deflate_fixed_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u8>
     let mut tokens: Vec<Token> = Vec::new();
     loop {
         let (symbol, bits) = next_fixed_huffman_symbol(data);
-
         if symbol > 256 {
             let (extra_length_bits, length) = decode_length(data, symbol);
             let distance_symbol_bits = data.next_n(5);
@@ -350,7 +349,7 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             nest_level: 0,
             data: format!("{:?}", code_length_prefixes),
             token_type: "cl_prefixes".to_string(),
-            description: "Prefixes for codelength alphabet".to_string(),
+            description: "Prefixes for codelength alphabet in base 10".to_string(),
         }
     );
 
@@ -381,7 +380,7 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             nest_level: 0,
             data: format!("{:?}", huffman_normal_prefixes),
             token_type: "normal_prefixes".to_string(),
-            description: "Prefixes for normal alphabet".to_string(),
+            description: "Prefixes for normal alphabet in base 10".to_string(),
         }
     );
     let huffman_normal_codelengths: Vec<u8> = decoded_normal_codelengths.iter().cloned().filter(|&x| x > 0).collect();
@@ -423,7 +422,8 @@ fn deflate_dynamic_huffman_block(data: &mut BitStream, symbol_buffer: &mut Vec<u
             let duplicate_values = decode_duplicate_reference(symbol_buffer, length, distance);
             symbol_buffer.extend(duplicate_values);
 
-            let all_bits = [symbol_bits, distance_symbol_bits].concat();
+            // bits + extra_length_bits + distance_symbol_bits + extra_distance_bits
+            let all_bits = [symbol_bits, extra_length_bits, distance_symbol_bits, extra_distance_bits].concat();
 
             tokens.push(
                 reference_token(

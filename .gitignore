@@ -6,3 +6,4 @@ png_decoder_bg.wasm
 png_decoder_bg.wasm.d.ts
 png_decoder.d.ts
 png_decoder.js
+pkg/package.json
