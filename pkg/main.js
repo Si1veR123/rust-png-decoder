@@ -62,7 +62,46 @@ function decode_data(evt) {
 }
 
 function construct_token_row(token, i) {
-  return `<tr>
+  let tr = document.createElement("tr");
+  let td = document.createElement("td");
+
+  let divParent = document.createElement("div");
+  divParent.addEventListener("mouseover", (evt) => {
+    token_hover_over(i)
+  });
+  divParent.addEventListener("mouseout", (evt) => {
+    token_hover_out(i)
+  });
+  divParent.classList.add("token-row");
+  divParent.classList.add("token-row-nest-" + token.nest_level);
+
+  let tokenTypeDiv = document.createElement("div");
+  tokenTypeDiv.classList.add("token-type-parent");
+
+  let tokenTypeText = document.createElement("span");
+  tokenTypeText.classList.add("token-type");
+  tokenTypeText.innerText = token.token_type;
+
+  let tokenDataDiv = document.createElement("div");
+  tokenDataDiv.classList.add("token-data-parent");
+
+  let tokenDataText = document.createElement("span");
+  tokenDataText.classList.add("token-data");
+  tokenDataText.innerText = token.data;
+
+  tokenTypeDiv.appendChild(tokenTypeText);
+  tokenDataDiv.appendChild(tokenDataText);
+
+  divParent.appendChild(tokenTypeDiv);
+  divParent.appendChild(tokenDataDiv);
+
+  td.appendChild(divParent);
+  tr.appendChild(td);
+
+  return tr
+
+    /*
+  `<tr>
       <td>
         <div onmouseover="token_hover_over(${i})" onmouseout="token_hover_out(${i})" class="token-row token-row-nest-${token.nest_level}">
           <div class="token-type-parent">
@@ -74,14 +113,12 @@ function construct_token_row(token, i) {
         </div>
       </td>
     </tr>`; 
+    */
 }
 
 function decoded_data_callback(decoded_tokens) {
   let token_table = document.createElement("tbody");
   let bytes_table = document.createElement("tbody");
-  // let token_table = document.getElementById("token-table");
-  // let bytes_table = document.getElementById("bytes-table");
-  //token_table.innerHTML = "";
 
   // empty table with headers
   bytes_table.innerHTML = `<tr style="width: 100%;">
@@ -104,7 +141,7 @@ function decoded_data_callback(decoded_tokens) {
 
   for (const [index, token] of decoded_tokens.entries()) {
     let html = construct_token_row(token, index);
-    token_table.innerHTML = token_table.innerHTML + html;
+    token_table.appendChild(html);
 
     if (token.using_bytes) {
       var bits = bytes_to_bits(token.bits);
