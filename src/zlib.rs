@@ -1,60 +1,113 @@
-use std::fmt::Display;
-use crate::deflate::new_parse_deflate;
-use crate::low_level_functions::{bytes_vec_to_single, adler_32};
+use crate::deflate::{DeflateDecompression, DeflateError};
 
-
-pub struct ZLibInfo {
-    cm: u8,
-    cinfo: u8,
-    dictid: Option<[u8; 4]>,
-    flevel: u8,
-    adler32: u32,
+#[derive(Debug)]
+pub enum ZlibError {
+    NoBytes,
+    NoFlg,
+    FCheck,
+    InvalidFDict,
+    Deflate(DeflateError),
+    AdlerCheck
 }
 
-impl Display for ZLibInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CM: {} CINFO: {} FLEVEL: {} ADLER32: {}", self.cm, self.cinfo, self.flevel, self.adler32)
+impl From<DeflateError> for ZlibError {
+    fn from(value: DeflateError) -> Self {
+        Self::Deflate(value)
     }
 }
 
-pub fn new_parse_zlib(data: Vec<u8>) -> (ZLibInfo, Vec<u8>) {
-    let cmf = data.get(0).expect("No ZLib stream found");
-    let flg = data.get(1).expect("ZLib stream has one byte");
-    // checksum, when cmf and flg are viewed as a 16 bit int, must be multiple of 31
-    assert_eq!((((*cmf as u16) << 8) | (*flg as u16))%31, 0);
+pub fn adler_32(bytes: impl AsRef<[u8]>) -> u32 {
+    let mut a = 1;
+    let mut b = 0;
 
-    let fdict = (flg & 32u8) >> 5;
-    let dictid: Option<[u8; 4]>;
-    let deflate_data_start: usize;
-    match fdict {
-        0 => {
-            dictid = None;
-            deflate_data_start = 2;
-        },
-        1 => {
-            dictid = Some(data[2..6].try_into().expect("Can't get bytes 2-5 in ZLib stream"));
-            deflate_data_start = 6;
-        },
-        _ => panic!("Incorrect fdict bit")
+    for byte in bytes.as_ref() {
+        a = (a + (*byte as u32)) % 65521;
+        b = (b + a) % 65521;
     }
 
-    let adler32_check = bytes_vec_to_single(&data[data.len()-4..].to_vec());
-    let decompressed = new_parse_deflate(
-        data[deflate_data_start..(data.len()-4)]
-            .try_into()
-            .expect("Can't get deflate compressed data")
-        );
-    
-    assert_eq!(adler_32(&decompressed), adler32_check);
-    
-    (
-        ZLibInfo {
-            cm: cmf & 15u8,  // bit 0-3 from least to most significant bit
-            cinfo: (cmf & 240u8) >> 4,
+    ((b as u32) << 16) | (a as u32)
+}
+
+pub struct ZlibDecompressed {
+    pub cm: u8,
+    pub cinfo: u8,
+    pub dictid: Option<[u8; 4]>,
+    pub flevel: u8,
+    pub data: Vec<u8>,
+    pub adler32: u32,
+}
+
+pub struct ZlibParser<'a> {
+    bytes: &'a [u8]
+}
+
+impl<'a> ZlibParser<'a> {
+    pub fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes }
+    }
+
+    fn parse_cmf_flg(&mut self) -> Result<(u8, u8), ZlibError> {
+        let cmf = *self.bytes.get(0).ok_or(ZlibError::NoBytes)?;
+        let flg = *self.bytes.get(1).ok_or(ZlibError::NoFlg)?;
+
+        if ((cmf as u16) << 8 | flg as u16) % 31 != 0 {
+            return Err(ZlibError::FCheck)
+        }
+
+        Ok((cmf, flg))
+    }
+
+    /// Panic if less than 4 bytes in self.bytes
+    fn parse_adler(&mut self) -> u32 {
+        let adler_bytes: [u8; 4] = self.bytes[self.bytes.len()-4..self.bytes.len()].try_into().unwrap();
+
+        let adler32 = (adler_bytes[0] as u32) << 24 |
+                         (adler_bytes[1] as u32) << 16 |
+                         (adler_bytes[2] as u32) << 8 |
+                         adler_bytes[3] as u32;
+        
+        adler32
+    }
+
+    pub fn parse(&mut self) -> Result<ZlibDecompressed, ZlibError> {
+        let (cmf, flg) = self.parse_cmf_flg()?;
+
+        let fdict = (flg & 0b0010_0000) >> 5;
+
+        let dictid: Option<[u8; 4]>;
+        let data_slice: &[u8];
+
+        match fdict {
+            0 => {
+                dictid = None;
+                data_slice = &self.bytes[2..self.bytes.len()-4];
+            },
+            1 => {
+                dictid = Some(
+                    self.bytes[2..6]
+                        .try_into()
+                        .map_err(|_| ZlibError::InvalidFDict)?
+                    );
+                
+                data_slice = &self.bytes[6..self.bytes.len()-4];
+            },
+            _ => return Err(ZlibError::InvalidFDict)
+        }
+        
+        let decompressed = DeflateDecompression::new(data_slice).decompress()?;
+        let adler32 = self.parse_adler();
+
+        if adler_32(&decompressed) != adler32 {
+            return Err(ZlibError::AdlerCheck)
+        }
+        
+        Ok(ZlibDecompressed {
+            cm: cmf & 0b0000_1111,
+            cinfo: (cmf & 0b1111_0000) >> 4,
             dictid,
-            flevel: (flg & 192u8) >> 6,
-            adler32: adler32_check,
-        },
-        decompressed
-    )
+            flevel: (flg & 0b1100_0000) >> 6,
+            data: decompressed,
+            adler32
+        })
+    }
 }

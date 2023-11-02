@@ -1,35 +1,21 @@
-#![allow(dead_code)]
+use png_decoder::zlib::ZlibParser;
 
-mod png_parser;
-mod low_level_functions;
-mod zlib;
-mod deflate;
-mod bitstream;
-mod huffman_coding;
-
-use png_parser::PNGParser;
-use std::fs::File;
-use std::io::Read;
-use std::path::Path;
-
-const FP: &str = r"E:\Programming\Rust\rust-png-decoder\pngtest_100x100.png";
+use std::fs::read_dir;
+use std::fs::read;
+use std::time::Instant;
 
 fn main() {
-    let mut file_buffer = Vec::<u8>::new();
+    let test_data = read_dir("zlib_tests").unwrap();
+    let mut times = Vec::new();
 
-    {
-        let path = Path::new(FP);
-        let mut file = File::open(path).expect("File not found");
-        let _file_size = file.read_to_end(&mut file_buffer).expect("Can't read file");
+    for file in test_data {
+        let fp = file.unwrap().path();
+        let data = read(&fp).unwrap();
+        let start = Instant::now();
+        let mut zlib = ZlibParser::new(&data);
+        let _zlib_decompressed = zlib.parse().unwrap();
+        let end = Instant::now();
+        times.push(end-start);
+        println!("{:?}", end-start);
     }
-
-    let parser = PNGParser::new(file_buffer);
-    
-    println!("{}", parser.metadata);
-
-    for chunk in &parser.chunks {
-        println!("{}", chunk);
-    }
-
-    println!("{:?}", parser.image_data.data);
 }
